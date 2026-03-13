@@ -485,6 +485,41 @@ function xpProgress(xp) {
   return (xp - curr) / (next - curr);
 }
 
+// ── XP PERSISTENCE (localStorage) ──
+const XP_KEY = 'robin-family-xp';
+
+function loadXP() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(XP_KEY));
+    if (saved) {
+      for (const agent of agents) {
+        if (saved[agent.name] !== undefined && saved[agent.name] > agent.xp) {
+          agent.xp = saved[agent.name]; // only load if higher (never lose XP)
+        }
+      }
+    }
+  } catch {}
+}
+
+function saveXP() {
+  const data = {};
+  for (const agent of agents) data[agent.name] = agent.xp;
+  localStorage.setItem(XP_KEY, JSON.stringify(data));
+}
+
+// Passive XP: agents earn XP every 30 seconds based on activity
+function tickXP() {
+  for (const agent of agents) {
+    switch (agent.activity) {
+      case 'working': agent.xp += 2; break;
+      case 'meeting': agent.xp += 3; break;
+      case 'visiting': agent.xp += 1; break;
+      case 'break': agent.xp += 1; break;
+    }
+  }
+  saveXP();
+}
+
 // Agent roles/class for display
 const AGENT_CLASS = {
   robin: 'Oracle',
@@ -495,17 +530,17 @@ const AGENT_CLASS = {
 
 // ── AGENTS ──
 const agents = [
-  { name: 'robin', x: 10, y: 7, dir: 0, tx: 10, ty: 7, walking: false, speed: 0.03, bubble: null, bubbleStart: 0, idleTimer: 0, home: {x:4,y:4},
-    xp: 720, activity: 'idle', activityTimer: 0, lastScheduleCheck: 0, path: [], pathIdx: 0,
+  { name: 'robin', x: 10, y: 7, dir: 0, tx: 10, ty: 7, walking: false, speed: 0.008, bubble: null, bubbleStart: 0, idleTimer: 0, home: {x:4,y:4},
+    xp: 1200, activity: 'idle', activityTimer: 0, lastScheduleCheck: 0, path: [], pathIdx: 0,
   },
-  { name: 'sherlock', x: 4, y: 9, dir: 0, tx: 4, ty: 9, walking: false, speed: 0.025, bubble: null, bubbleStart: 0, idleTimer: 0, home: {x:4,y:13},
-    xp: 410, activity: 'idle', activityTimer: 0, lastScheduleCheck: 0, path: [], pathIdx: 0,
+  { name: 'sherlock', x: 4, y: 9, dir: 0, tx: 4, ty: 9, walking: false, speed: 0.006, bubble: null, bubbleStart: 0, idleTimer: 0, home: {x:4,y:13},
+    xp: 800, activity: 'idle', activityTimer: 0, lastScheduleCheck: 0, path: [], pathIdx: 0,
   },
-  { name: 'jarvis', x: 17, y: 4, dir: 0, tx: 17, ty: 4, walking: false, speed: 0.02, bubble: null, bubbleStart: 0, idleTimer: 0, home: {x:16,y:4},
-    xp: 480, activity: 'idle', activityTimer: 0, lastScheduleCheck: 0, path: [], pathIdx: 0,
+  { name: 'jarvis', x: 17, y: 4, dir: 0, tx: 17, ty: 4, walking: false, speed: 0.005, bubble: null, bubbleStart: 0, idleTimer: 0, home: {x:16,y:4},
+    xp: 900, activity: 'idle', activityTimer: 0, lastScheduleCheck: 0, path: [], pathIdx: 0,
   },
-  { name: 'stark', x: 17, y: 12, dir: 0, tx: 17, ty: 12, walking: false, speed: 0.035, bubble: null, bubbleStart: 0, idleTimer: 0, home: {x:16,y:13},
-    xp: 880, activity: 'idle', activityTimer: 0, lastScheduleCheck: 0, path: [], pathIdx: 0,
+  { name: 'stark', x: 17, y: 12, dir: 0, tx: 17, ty: 12, walking: false, speed: 0.009, bubble: null, bubbleStart: 0, idleTimer: 0, home: {x:16,y:13},
+    xp: 1500, activity: 'idle', activityTimer: 0, lastScheduleCheck: 0, path: [], pathIdx: 0,
   },
 ];
 
@@ -564,27 +599,34 @@ const DIALOGS = [
   ]},
 ];
 
-// ── DIALOG SYSTEM ──
+// ── DIALOG SYSTEM (auto-advancing) ──
 let dialogActive = false;
 let dialogQueue = [];
 let dialogCharIdx = 0;
 let dialogDone = false;
 let currentDialog = null;
+let autoAdvanceTimer = null;
 
 function showDialog(lines) {
   dialogQueue = [...lines];
   dialogActive = true;
   dialogCharIdx = 0;
   dialogDone = false;
+  if (autoAdvanceTimer) { clearTimeout(autoAdvanceTimer); autoAdvanceTimer = null; }
   nextLine();
   document.getElementById('ui').style.display = 'block';
 }
 
 function nextLine() {
+  if (autoAdvanceTimer) { clearTimeout(autoAdvanceTimer); autoAdvanceTimer = null; }
+
   if (dialogQueue.length === 0) {
     dialogActive = false;
     document.getElementById('ui').style.display = 'none';
     currentDialog = null;
+    // XP reward for conversation
+    for (const agent of agents) agent.xp += 5;
+    saveXP();
     return;
   }
   const line = dialogQueue.shift();
@@ -608,6 +650,10 @@ function nextLine() {
       clearInterval(typeInterval);
       dialogDone = true;
       nextEl.style.display = 'inline';
+      // Auto-advance after 3 seconds (click still works to skip ahead)
+      autoAdvanceTimer = setTimeout(() => {
+        if (dialogActive && dialogDone) nextLine();
+      }, 3000);
     }
   }, 35);
 }
@@ -773,7 +819,7 @@ function updateAgents(dt) {
           agent.dir = 0;
         } else if (agent.activity === 'working') {
           // Small fidgets near workstation
-          if (agent.activityTimer > 5000 + Math.random() * 3000) {
+          if (agent.activityTimer > 2500 + Math.random() * 2000) {
             const jx = Math.round(agent.x) + (Math.random() > 0.5 ? 1 : -1);
             const jy = Math.round(agent.y) + (Math.random() > 0.5 ? 1 : 0);
             if (isWalkable(jx, jy)) {
@@ -845,8 +891,8 @@ function updateAgents(dt) {
     }
   }
 
-  // Conversations — when agents are close and not walking
-  if (!dialogActive && now - lastConvoTime > 12000) {
+  // Conversations — when agents are close and not walking (30s cooldown)
+  if (!dialogActive && now - lastConvoTime > 30000) {
     for (let i = 0; i < agents.length; i++) {
       for (let j = i + 1; j < agents.length; j++) {
         const a = agents[i], b = agents[j];
@@ -1220,7 +1266,7 @@ function showActivityBubble(agent) {
     case 'meeting': pool = ['📋 Review time', 'Status update...', 'What\'s next?', 'Good progress!', 'Let\'s plan...']; break;
     default: return;
   }
-  if (pool && Math.random() < 0.008) {
+  if (pool && Math.random() < 0.015) {
     agent.bubble = pool[Math.floor(Math.random() * pool.length)];
     agent.bubbleStart = Date.now();
   }
@@ -1523,7 +1569,10 @@ function gameLoop(time) {
 
 function startGame() {
   document.getElementById('title-screen').style.display = 'none';
+  loadXP();
   started = true;
+  // Start passive XP earning (every 30 seconds)
+  setInterval(tickXP, 30000);
   // Play a little start chime
   try {
     const ac = new AudioContext();
