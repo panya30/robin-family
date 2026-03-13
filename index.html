@@ -1,0 +1,1583 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Robin Family — HQ</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #0a0a1a; display: flex; justify-content: center; align-items: center; min-height: 100vh; overflow: hidden; }
+  canvas { image-rendering: pixelated; image-rendering: crisp-edges; cursor: default; }
+  #ui {
+    position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
+    width: 640px; display: none; z-index: 10;
+  }
+  #dialog {
+    background: #111133; border: 3px solid #4444aa; border-bottom: none;
+    padding: 16px 20px; font-family: 'Press Start 2P', monospace;
+    font-size: 11px; color: #e8e8ff; line-height: 2; min-height: 90px;
+    position: relative;
+  }
+  #dialog .name {
+    font-size: 10px; margin-bottom: 6px; display: block;
+  }
+  #dialog .text { display: block; min-height: 44px; }
+  #dialog .next {
+    position: absolute; bottom: 10px; right: 16px; font-size: 8px;
+    color: #6666aa; animation: blink 1s step-end infinite;
+  }
+  @keyframes blink { 50% { opacity: 0; } }
+  #mission-board {
+    position: fixed; inset: 0; z-index: 50; display: none;
+    background: rgba(0,0,0,0.7); justify-content: center; align-items: center;
+    font-family: 'Press Start 2P', monospace;
+  }
+  #mission-board.open { display: flex; }
+  #mission-panel {
+    background: #111133; border: 3px solid #4444aa; width: 560px; max-height: 80vh;
+    overflow-y: auto; position: relative;
+  }
+  #mission-panel .header {
+    background: #222255; padding: 12px 16px; border-bottom: 2px solid #4444aa;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  #mission-panel .header h2 { font-size: 12px; color: #ffe66d; }
+  #mission-panel .header .close {
+    font-size: 10px; color: #6666aa; cursor: pointer; padding: 4px 8px;
+  }
+  #mission-panel .header .close:hover { color: #ff6b9d; }
+  #mission-panel .body { padding: 12px 16px; }
+  .mission-card {
+    background: #1a1a44; border: 2px solid #333366; margin-bottom: 10px;
+    padding: 12px; cursor: pointer; transition: border-color 0.2s;
+  }
+  .mission-card:hover { border-color: #6666cc; }
+  .mission-card.expanded .mission-detail { display: block; }
+  .mission-card .mission-head {
+    display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;
+  }
+  .mission-card .mission-title { font-size: 9px; color: #e8e8ff; line-height: 1.8; flex: 1; }
+  .mission-card .mission-id { font-size: 7px; color: #5a5a7a; margin-bottom: 6px; display: block; }
+  .mission-card .mission-status {
+    font-size: 7px; padding: 3px 8px; border: 1px solid; white-space: nowrap; flex-shrink: 0;
+  }
+  .mission-card .mission-status.active { color: #50fa7b; border-color: #50fa7b; }
+  .mission-card .mission-status.pending { color: #ffe66d; border-color: #ffe66d; }
+  .mission-card .mission-status.complete { color: #4ecdc4; border-color: #4ecdc4; }
+  .mission-card .mission-agents {
+    display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap;
+  }
+  .mission-card .agent-tag {
+    font-size: 7px; padding: 2px 6px; color: #fff;
+  }
+  .agent-tag.robin { background: #ff6b9d33; border: 1px solid #ff6b9d; color: #ff6b9d; }
+  .agent-tag.sherlock { background: #4ecdc433; border: 1px solid #4ecdc4; color: #4ecdc4; }
+  .agent-tag.jarvis { background: #ffe66d33; border: 1px solid #ffe66d; color: #ffe66d; }
+  .agent-tag.stark { background: #ff6b3533; border: 1px solid #ff6b35; color: #ff6b35; }
+  .mission-detail {
+    display: none; margin-top: 10px; padding-top: 10px;
+    border-top: 1px solid #333366;
+  }
+  .mission-detail .checklist { list-style: none; padding: 0; }
+  .mission-detail .checklist li {
+    font-size: 8px; color: #8888aa; line-height: 2.2; padding-left: 4px;
+  }
+  .mission-detail .checklist li.done { color: #50fa7b; }
+  .mission-detail .checklist li::before { content: '[ ] '; color: #5a5a7a; }
+  .mission-detail .checklist li.done::before { content: '[✓] '; color: #50fa7b; }
+  .mission-detail .log-entry {
+    font-size: 7px; color: #6666aa; line-height: 2; margin-top: 8px;
+    border-left: 2px solid #333366; padding-left: 8px;
+  }
+  .mission-detail .log-entry .log-who { color: #ff6b9d; }
+  .board-hint {
+    position: fixed; z-index: 5; font-family: 'Press Start 2P', monospace;
+    font-size: 7px; color: #ffe66d; pointer-events: none;
+    animation: floatHint 2s ease-in-out infinite;
+    text-shadow: 0 0 8px rgba(255,230,109,0.5);
+  }
+  @keyframes floatHint { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
+  #agent-panel {
+    position: fixed; z-index: 40; display: none;
+    font-family: 'Press Start 2P', monospace;
+    background: #111133; border: 3px solid #4444aa;
+    padding: 14px 18px; width: 260px;
+    pointer-events: none;
+  }
+  #agent-panel.open { display: block; pointer-events: auto; }
+  #agent-panel .ap-name { font-size: 12px; margin-bottom: 2px; }
+  #agent-panel .ap-class { font-size: 7px; color: #8888aa; margin-bottom: 10px; display: block; }
+  #agent-panel .ap-row {
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 8px; color: #cccce8; margin-bottom: 6px;
+  }
+  #agent-panel .ap-row .label { color: #6666aa; }
+  #agent-panel .ap-xpbar {
+    width: 100%; height: 8px; background: #1a1a2e;
+    border: 1px solid #333366; margin-bottom: 6px; position: relative;
+  }
+  #agent-panel .ap-xpbar .fill { height: 100%; transition: width 0.5s; }
+  #agent-panel .ap-skills { font-size: 7px; color: #8888aa; line-height: 2; margin-top: 6px; }
+  #agent-panel .ap-skills span { color: #50fa7b; }
+  @keyframes xpGlow { 0% { box-shadow: 0 0 0 transparent; } 50% { box-shadow: 0 0 12px rgba(80,250,123,0.4); } 100% { box-shadow: 0 0 0 transparent; } }
+  #title-screen {
+    position: fixed; inset: 0; background: #0a0a1a; z-index: 100;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    font-family: 'Press Start 2P', monospace; color: #e8e8ff; cursor: pointer;
+  }
+  #title-screen h1 { font-size: 24px; color: #ff6b9d; text-shadow: 0 0 30px rgba(255,107,157,0.5); margin-bottom: 12px; }
+  #title-screen .sub { font-size: 9px; color: #5a5a7a; margin-bottom: 50px; }
+  #title-screen .start { font-size: 11px; color: #50fa7b; animation: blink 1.2s step-end infinite; }
+  #title-screen .copy { position: absolute; bottom: 30px; font-size: 7px; color: #3a3a5a; }
+</style>
+</head>
+<body>
+
+<div id="title-screen" onclick="startGame()">
+  <h1>ROBIN FAMILY</h1>
+  <div class="sub">— HEADQUARTERS —</div>
+  <div class="start">▶ PRESS ANYWHERE TO START</div>
+  <div class="copy">© 2026 ROBIN FAMILY ENTERTAINMENT</div>
+</div>
+
+<canvas id="game"></canvas>
+<div id="ui"><div id="dialog"><span class="name"></span><span class="text"></span><span class="next" style="display:none">▼</span></div></div>
+
+<div id="agent-panel"></div>
+
+<div id="mission-board">
+  <div id="mission-panel">
+    <div class="header">
+      <h2>⚔ MISSION BOARD</h2>
+      <span class="close" onclick="closeMissionBoard()">✕ ESC</span>
+    </div>
+    <div class="body" id="mission-list"></div>
+  </div>
+</div>
+
+<script>
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+const TILE = 16;
+const SCALE = 3;
+const COLS = 22;
+const ROWS = 16;
+canvas.width = COLS * TILE * SCALE;
+canvas.height = ROWS * TILE * SCALE;
+document.getElementById('ui').style.width = canvas.width + 'px';
+
+// ── COLORS ──
+const C = {
+  grass1: '#2d5a1e', grass2: '#3a6b2a', path: '#8b7355', pathDark: '#6b5535',
+  water: '#2244aa', waterLight: '#3355bb',
+  wall: '#554433', wallDark: '#3a2a1a', roof: '#993333', roofDark: '#772222',
+  door: '#443322', window: '#88aadd', windowLit: '#ffee88',
+  tree: '#1a4a12', treeDark: '#0d3308', trunk: '#5a3a1a',
+  flower1: '#ff6b9d', flower2: '#ffe66d', flower3: '#4ecdc4',
+  stone: '#666677', stoneDark: '#444455',
+};
+
+// ── MAP (0=grass, 1=path, 2=wall, 3=roof, 4=water, 5=tree, 6=stone, 7=door, 8=flower) ──
+const MAP = [
+  [5,5,5,5,5,5,5,4,4,4,4,4,4,4,5,5,5,5,5,5,5,5],
+  [5,5,5,3,3,3,5,4,4,4,4,4,4,4,5,3,3,3,3,5,5,5],
+  [5,5,5,2,2,2,5,0,0,1,1,1,0,0,5,2,2,2,2,5,5,5],
+  [5,0,0,2,7,2,0,0,0,1,8,1,0,0,0,2,7,2,2,0,0,5],
+  [5,0,0,0,1,0,0,0,0,1,0,1,0,0,0,0,1,0,0,0,0,5],
+  [5,0,8,0,1,0,0,8,0,1,0,1,0,8,0,0,1,0,8,0,0,5],
+  [5,0,0,0,1,1,1,1,1,1,0,1,1,1,1,1,1,0,0,0,0,5],
+  [5,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,5],
+  [5,0,6,0,0,0,0,0,0,6,9,6,0,0,0,0,0,0,6,0,0,5],
+  [5,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,5],
+  [5,0,0,0,1,1,1,1,1,1,0,1,1,1,1,1,1,0,0,0,0,5],
+  [5,0,8,0,1,0,0,8,0,1,0,1,0,8,0,0,1,0,8,0,0,5],
+  [5,0,0,0,1,0,0,0,0,1,0,1,0,0,0,0,1,0,0,0,0,5],
+  [5,0,0,2,7,2,0,0,0,1,8,1,0,0,0,2,7,2,2,0,0,5],
+  [5,5,5,2,2,2,5,0,0,1,1,1,0,0,5,2,2,2,2,5,5,5],
+  [5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5],
+];
+
+const SOLID = new Set([2, 3, 4, 5, 6, 9]);
+
+// ── DRAW TILE ──
+function drawTile(x, y, type) {
+  const px = x * TILE;
+  const py = y * TILE;
+  // Grass base
+  ctx.fillStyle = (x + y) % 2 === 0 ? C.grass1 : C.grass2;
+  ctx.fillRect(px, py, TILE, TILE);
+
+  switch(type) {
+    case 1: // path
+      ctx.fillStyle = C.path;
+      ctx.fillRect(px, py, TILE, TILE);
+      ctx.fillStyle = C.pathDark;
+      ctx.fillRect(px+2, py+6, 2, 2);
+      ctx.fillRect(px+10, py+12, 2, 2);
+      break;
+    case 2: // wall
+      ctx.fillStyle = C.wall;
+      ctx.fillRect(px, py, TILE, TILE);
+      ctx.fillStyle = C.wallDark;
+      ctx.fillRect(px, py, TILE, 2);
+      // window — glows warm at night, cool blue by day
+      const nightAlpha = getDayNightAlpha();
+      ctx.fillStyle = nightAlpha > 0.1 ? '#ffee88' : C.windowLit;
+      ctx.fillRect(px+5, py+5, 6, 5);
+      if (nightAlpha > 0.1) {
+        ctx.fillStyle = `rgba(255, 238, 136, ${nightAlpha * 0.4})`;
+        ctx.fillRect(px+3, py+3, 10, 9);
+      }
+      ctx.fillStyle = C.wall;
+      ctx.fillRect(px+7, py+5, 2, 5);
+      ctx.fillRect(px+5, py+7, 6, 1);
+      break;
+    case 3: // roof
+      ctx.fillStyle = C.roof;
+      ctx.fillRect(px, py, TILE, TILE);
+      ctx.fillStyle = C.roofDark;
+      for (let i = 0; i < TILE; i += 4) {
+        ctx.fillRect(px + ((y * 2 + i) % 4), py + i, 2, 2);
+      }
+      break;
+    case 4: // water / sky (reflects time of day)
+      ctx.fillStyle = getSkyColor();
+      ctx.fillRect(px, py, TILE, TILE);
+      const waterHighlight = isNightTime() ? 'rgba(100,100,200,0.15)' : 'rgba(100,160,255,0.2)';
+      ctx.fillStyle = waterHighlight;
+      const wt = (Date.now() / 400 + x + y) % 3;
+      if (wt < 1) { ctx.fillRect(px+3, py+4, 5, 1); ctx.fillRect(px+9, py+10, 4, 1); }
+      break;
+    case 5: // tree
+      ctx.fillStyle = C.trunk;
+      ctx.fillRect(px+6, py+10, 4, 6);
+      ctx.fillStyle = C.treeDark;
+      ctx.fillRect(px+2, py+2, 12, 10);
+      ctx.fillStyle = C.tree;
+      ctx.fillRect(px+3, py+1, 10, 10);
+      ctx.fillRect(px+1, py+4, 14, 5);
+      break;
+    case 6: // stone
+      ctx.fillStyle = C.stone;
+      ctx.fillRect(px+2, py+4, 12, 8);
+      ctx.fillStyle = C.stoneDark;
+      ctx.fillRect(px+2, py+4, 12, 2);
+      break;
+    case 7: // door
+      ctx.fillStyle = C.wall;
+      ctx.fillRect(px, py, TILE, TILE);
+      ctx.fillStyle = C.door;
+      ctx.fillRect(px+4, py+3, 8, 13);
+      ctx.fillStyle = C.windowLit;
+      ctx.fillRect(px+10, py+8, 2, 2);
+      break;
+    case 8: // flower
+      const fc = [C.flower1, C.flower2, C.flower3][(x*3+y*7)%3];
+      ctx.fillStyle = fc;
+      ctx.fillRect(px+6, py+5, 4, 4);
+      ctx.fillStyle = C.tree;
+      ctx.fillRect(px+7, py+9, 2, 4);
+      break;
+    case 9: // mission board
+      // Wooden post
+      ctx.fillStyle = '#5a3a1a';
+      ctx.fillRect(px+6, py+8, 4, 8);
+      // Board
+      ctx.fillStyle = '#8b6914';
+      ctx.fillRect(px+1, py+1, 14, 9);
+      ctx.fillStyle = '#a67c20';
+      ctx.fillRect(px+2, py+2, 12, 7);
+      // Border nails
+      ctx.fillStyle = '#ccc';
+      ctx.fillRect(px+2, py+2, 1, 1);
+      ctx.fillRect(px+13, py+2, 1, 1);
+      ctx.fillRect(px+2, py+8, 1, 1);
+      ctx.fillRect(px+13, py+8, 1, 1);
+      // Paper notes pinned on board
+      ctx.fillStyle = '#ffe8c0';
+      ctx.fillRect(px+3, py+3, 4, 5);
+      ctx.fillStyle = '#e8d8b0';
+      ctx.fillRect(px+8, py+3, 5, 3);
+      ctx.fillStyle = '#d4eedd';
+      ctx.fillRect(px+8, py+7, 5, 1);
+      // Pin dots
+      ctx.fillStyle = '#ff4444';
+      ctx.fillRect(px+4, py+3, 1, 1);
+      ctx.fillStyle = '#4444ff';
+      ctx.fillRect(px+10, py+3, 1, 1);
+      // Pulsing glow effect
+      const glowAlpha = 0.15 + Math.sin(Date.now() / 500) * 0.1;
+      ctx.fillStyle = `rgba(255, 230, 109, ${glowAlpha})`;
+      ctx.fillRect(px-1, py-1, 18, 12);
+      break;
+  }
+}
+
+// ── SPRITE DRAWING ──
+const AGENT_COLORS = {
+  robin:    { body: '#ff6b9d', hair: '#cc3366', skin: '#ffccaa', accent: '#ff9dbd' },
+  sherlock: { body: '#4ecdc4', hair: '#2a7a72', skin: '#ffe0c0', accent: '#7eeee6' },
+  jarvis:   { body: '#ffe66d', hair: '#cc9900', skin: '#d4e4ff', accent: '#fff4aa' },
+  stark:    { body: '#ff6b35', hair: '#442200', skin: '#ffccaa', accent: '#ff9d6b' },
+};
+
+function drawSprite(agent, frame) {
+  const c = AGENT_COLORS[agent.name];
+  const px = Math.round(agent.x * TILE);
+  const py = Math.round(agent.y * TILE);
+
+  // Sleeping pose — curled up, Zzz particles
+  if (agent.activity === 'sleeping') {
+    // Shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.15)';
+    ctx.fillRect(px+2, py+12, 12, 3);
+    // Body (lying down)
+    ctx.fillStyle = c.body;
+    ctx.fillRect(px+2, py+8, 12, 5);
+    // Head
+    ctx.fillStyle = c.skin;
+    ctx.fillRect(px+2, py+5, 6, 5);
+    ctx.fillStyle = c.hair;
+    ctx.fillRect(px+1, py+4, 7, 3);
+    // Closed eyes
+    ctx.fillStyle = '#222';
+    ctx.fillRect(px+4, py+7, 3, 1);
+    // Zzz floating
+    const zt = Date.now() / 600;
+    const zy = Math.sin(zt) * 2;
+    ctx.fillStyle = `rgba(200, 200, 255, ${0.4 + Math.sin(zt * 2) * 0.3})`;
+    ctx.font = '3px monospace';
+    ctx.fillText('z', px + 12, py + 2 + zy);
+    ctx.fillText('z', px + 14, py - 1 + zy * 0.7);
+    ctx.font = '4px monospace';
+    ctx.fillText('Z', px + 10, py + 5 + zy * 0.5);
+    return; // Skip normal rendering
+  }
+
+  const bob = agent.walking ? (frame % 2 === 0 ? -1 : 0) : 0;
+  const step = agent.walking ? (frame % 2 === 0 ? -1 : 1) : 0;
+
+  // Shadow
+  ctx.fillStyle = 'rgba(0,0,0,0.2)';
+  ctx.fillRect(px+3, py+14, 10, 2);
+
+  // Body
+  ctx.fillStyle = c.body;
+  ctx.fillRect(px+4, py+7+bob, 8, 7);
+  // Accent belt
+  ctx.fillStyle = c.accent;
+  ctx.fillRect(px+4, py+10+bob, 8, 1);
+
+  // Legs
+  ctx.fillStyle = c.body;
+  ctx.fillRect(px+5+step, py+14, 3, 2);
+  ctx.fillRect(px+8-step, py+14, 3, 2);
+
+  // Arms
+  ctx.fillStyle = c.skin;
+  ctx.fillRect(px+2, py+8+bob, 2, 4);
+  ctx.fillRect(px+12, py+8+bob, 2, 4);
+
+  // Head
+  ctx.fillStyle = c.skin;
+  ctx.fillRect(px+4, py+1+bob, 8, 7);
+  // Hair
+  ctx.fillStyle = c.hair;
+  ctx.fillRect(px+3, py+0+bob, 10, 3);
+  ctx.fillRect(px+3, py+1+bob, 2, 4);
+  ctx.fillRect(px+11, py+1+bob, 2, 4);
+  // Eyes
+  ctx.fillStyle = '#222';
+  if (agent.dir === 0) { // down
+    ctx.fillRect(px+6, py+4+bob, 2, 2);
+    ctx.fillRect(px+9, py+4+bob, 2, 2);
+  } else if (agent.dir === 1) { // up
+    // no eyes visible from behind
+  } else if (agent.dir === 2) { // left
+    ctx.fillRect(px+5, py+4+bob, 2, 2);
+  } else { // right
+    ctx.fillRect(px+10, py+4+bob, 2, 2);
+  }
+
+  // Name tag with level
+  const lv = getLevelFromXP(agent.xp);
+  const lvLabel = 'Lv' + lv;
+  const label = agent.name.toUpperCase();
+  const fullLabel = label + ' ' + lvLabel;
+  const lw = fullLabel.length * 4;
+
+  // Tag background
+  ctx.fillStyle = c.body;
+  ctx.fillRect(px + 8 - lw/2 - 1, py - 10 + bob, lw + 2, 6);
+  // Name text
+  ctx.fillStyle = '#fff';
+  ctx.font = '4px monospace';
+  ctx.fillText(label, px + 8 - lw/2, py - 5 + bob);
+  // Level text (gold)
+  ctx.fillStyle = '#ffe66d';
+  ctx.fillText(lvLabel, px + 8 - lw/2 + label.length * 4 + 4, py - 5 + bob);
+
+  // XP bar
+  const barW = 14;
+  const barX = px + 8 - barW/2;
+  const barY = py - 3 + bob;
+  const progress = xpProgress(agent.xp);
+  // Background
+  ctx.fillStyle = '#1a1a2e';
+  ctx.fillRect(barX, barY, barW, 2);
+  // Fill — color by level tier
+  const barColor = lv >= 5 ? '#ff6b9d' : lv >= 3 ? '#50fa7b' : '#4ecdc4';
+  ctx.fillStyle = barColor;
+  ctx.fillRect(barX, barY, Math.round(barW * progress), 2);
+  // Border
+  ctx.strokeStyle = '#333355';
+  ctx.lineWidth = 0.5;
+  ctx.strokeRect(barX, barY, barW, 2);
+
+  // Working sparkle effect
+  if (agent.activity === 'working' && !agent.walking) {
+    const st = Date.now() / 300;
+    const sparkleAlpha = 0.3 + Math.sin(st + agents.indexOf(agent)) * 0.3;
+    ctx.fillStyle = `rgba(255, 230, 100, ${sparkleAlpha})`;
+    const sx = px + 13 + Math.sin(st * 1.5) * 2;
+    const sy = py + 6 + Math.cos(st * 2) * 1.5;
+    ctx.fillRect(sx, sy, 1, 1);
+    ctx.fillRect(sx + 1, sy - 1, 1, 1);
+  }
+
+  // Meeting indicator — small clipboard icon
+  if (agent.activity === 'meeting' && !agent.walking) {
+    ctx.fillStyle = '#ffe66d';
+    ctx.font = '3px monospace';
+    const mt = Math.sin(Date.now() / 500) * 0.5;
+    ctx.fillText('📋', px + 12, py + 4 + mt);
+  }
+
+  // Chat bubble
+  if (agent.bubble) {
+    const bw = Math.min(agent.bubble.length * 3.5 + 8, 80);
+    const bx = px + 8 - bw/2;
+    const by = py - 18 + bob;
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(bx, by, bw, 10);
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(px+6, by+10, 4, 3);
+    ctx.fillStyle = '#222';
+    ctx.font = '4px monospace';
+    const txt = agent.bubble.substring(0, Math.floor((Date.now() - agent.bubbleStart) / 60));
+    ctx.fillText(txt, bx + 3, by + 7);
+  }
+}
+
+// ── XP SYSTEM ──
+// XP required per level: 100, 250, 500, 800, 1200, 1700, 2300, 3000...
+function xpForLevel(lv) { return Math.round(50 * lv * lv + 50 * lv); }
+function getLevelFromXP(xp) {
+  let lv = 1;
+  while (xp >= xpForLevel(lv + 1)) lv++;
+  return lv;
+}
+function xpProgress(xp) {
+  const lv = getLevelFromXP(xp);
+  const curr = xpForLevel(lv);
+  const next = xpForLevel(lv + 1);
+  return (xp - curr) / (next - curr);
+}
+
+// Agent roles/class for display
+const AGENT_CLASS = {
+  robin: 'Oracle',
+  sherlock: 'Analyst',
+  jarvis: 'Archivist',
+  stark: 'Engineer',
+};
+
+// ── AGENTS ──
+const agents = [
+  { name: 'robin', x: 10, y: 7, dir: 0, tx: 10, ty: 7, walking: false, speed: 0.03, bubble: null, bubbleStart: 0, idleTimer: 0, home: {x:4,y:4},
+    xp: 720, activity: 'idle', activityTimer: 0, lastScheduleCheck: 0, path: [], pathIdx: 0,
+  },
+  { name: 'sherlock', x: 4, y: 9, dir: 0, tx: 4, ty: 9, walking: false, speed: 0.025, bubble: null, bubbleStart: 0, idleTimer: 0, home: {x:4,y:13},
+    xp: 410, activity: 'idle', activityTimer: 0, lastScheduleCheck: 0, path: [], pathIdx: 0,
+  },
+  { name: 'jarvis', x: 17, y: 4, dir: 0, tx: 17, ty: 4, walking: false, speed: 0.02, bubble: null, bubbleStart: 0, idleTimer: 0, home: {x:16,y:4},
+    xp: 480, activity: 'idle', activityTimer: 0, lastScheduleCheck: 0, path: [], pathIdx: 0,
+  },
+  { name: 'stark', x: 17, y: 12, dir: 0, tx: 17, ty: 12, walking: false, speed: 0.035, bubble: null, bubbleStart: 0, idleTimer: 0, home: {x:16,y:13},
+    xp: 880, activity: 'idle', activityTimer: 0, lastScheduleCheck: 0, path: [], pathIdx: 0,
+  },
+];
+
+const DIALOGS = [
+  { a: 'robin', b: 'sherlock', lines: [
+    { who: 'robin', text: 'Sherlock, เธอดู data ของ crisis stocks หรือยัง?' },
+    { who: 'sherlock', text: 'Interesting pattern. 3 of them share the same divergence from EMA200.' },
+    { who: 'robin', text: 'เก่งมาก! ส่งให้ Jarvis index ด้วยนะ' },
+  ]},
+  { a: 'robin', b: 'stark', lines: [
+    { who: 'robin', text: 'Stark, monitor page เป็นไงบ้าง?' },
+    { who: 'stark', text: 'Sidebar with groups, drag & drop, green fill bars. All shipped.' },
+    { who: 'robin', text: 'ดีมาก! เธอเก่งเรื่อง build เสมอเลย' },
+    { who: 'stark', text: 'Just point me at the next problem.' },
+  ]},
+  { a: 'sherlock', b: 'jarvis', lines: [
+    { who: 'sherlock', text: 'Jarvis, what patterns have you found in the Thai market data?' },
+    { who: 'jarvis', text: 'Sir, I\'ve noticed a recurring pattern. Stocks with P/E below 12 and dividend above 4% outperform during corrections.' },
+    { who: 'sherlock', text: 'Fascinating. Cross-reference with the crisis group.' },
+    { who: 'jarvis', text: 'Already done. Three matches: AWC, WHA, AMATA.' },
+  ]},
+  { a: 'stark', b: 'jarvis', lines: [
+    { who: 'stark', text: 'Hey Jarvis, you got the API specs for that new feature?' },
+    { who: 'jarvis', text: 'I\'ve compiled everything. Yahoo Finance v3 requires new initialization.' },
+    { who: 'stark', text: 'Already fixed that bug yesterday. What else?' },
+    { who: 'jarvis', text: 'I recommend adding auto-refresh. The human would appreciate it.' },
+  ]},
+  { a: 'robin', b: 'jarvis', lines: [
+    { who: 'robin', text: 'Jarvis, วันนี้เธอเห็น pattern อะไรบ้าง?' },
+    { who: 'jarvis', text: 'The human has been monitoring 27 stocks. 13 show buy signals. The crisis group has 100% buy rate.' },
+    { who: 'robin', text: 'น่าสนใจมาก remind ฉันด้วยนะ ว่าต้องบอกเขา' },
+  ]},
+  { a: 'sherlock', b: 'stark', lines: [
+    { who: 'sherlock', text: 'Stark, I need a screener that filters by golden cross AND low P/B.' },
+    { who: 'stark', text: 'How about I add it to the existing screen page? 15 minutes.' },
+    { who: 'sherlock', text: 'Acceptable. Make sure the data source is reliable.' },
+    { who: 'stark', text: 'When have I ever shipped broken code? ...Don\'t answer that.' },
+  ]},
+  { a: 'robin', b: 'sherlock', lines: [
+    { who: 'robin', text: 'ภารกิจใหม่! เธอต้องไปศึกษา yfinance กับ pandas-ta' },
+    { who: 'sherlock', text: 'Financial data sources and technical analysis? Finally, real work.' },
+    { who: 'robin', text: 'เอา pattern ที่เจอกลับมาด้วยนะ Jarvis จะ index ให้' },
+    { who: 'sherlock', text: 'I never return empty-handed. The data will speak.' },
+  ]},
+  { a: 'jarvis', b: 'stark', lines: [
+    { who: 'jarvis', text: 'Sir, the new mission requires us to study open source repos.' },
+    { who: 'stark', text: 'Next.js, shadcn, TanStack. I already know most of this.' },
+    { who: 'jarvis', text: 'Perhaps. But I found 47 patterns in llama_index we haven\'t used yet.' },
+    { who: 'stark', text: '...Okay, maybe there\'s something to learn. Send me the good parts.' },
+  ]},
+  { a: 'robin', b: 'jarvis', lines: [
+    { who: 'robin', text: 'Jarvis, เธอพร้อมเรียน Chroma internals กับ RAG patterns มั้ย?' },
+    { who: 'jarvis', text: 'Always ready. Knowledge is my purpose. Chroma, LlamaIndex, LangChain.' },
+    { who: 'robin', text: 'เก่งมาก! ทุกอย่างที่เรียนรู้ index ลง Panya ด้วยนะ' },
+    { who: 'jarvis', text: 'Every insight will be preserved. Nothing will be forgotten.' },
+  ]},
+];
+
+// ── DIALOG SYSTEM ──
+let dialogActive = false;
+let dialogQueue = [];
+let dialogCharIdx = 0;
+let dialogDone = false;
+let currentDialog = null;
+
+function showDialog(lines) {
+  dialogQueue = [...lines];
+  dialogActive = true;
+  dialogCharIdx = 0;
+  dialogDone = false;
+  nextLine();
+  document.getElementById('ui').style.display = 'block';
+}
+
+function nextLine() {
+  if (dialogQueue.length === 0) {
+    dialogActive = false;
+    document.getElementById('ui').style.display = 'none';
+    currentDialog = null;
+    return;
+  }
+  const line = dialogQueue.shift();
+  currentDialog = line;
+  dialogCharIdx = 0;
+  dialogDone = false;
+  const nameEl = document.querySelector('#dialog .name');
+  const textEl = document.querySelector('#dialog .text');
+  const nextEl = document.querySelector('#dialog .next');
+  const colors = { robin: '#ff6b9d', sherlock: '#4ecdc4', jarvis: '#ffe66d', stark: '#ff6b35' };
+  nameEl.style.color = colors[line.who];
+  nameEl.textContent = line.who.charAt(0).toUpperCase() + line.who.slice(1);
+  textEl.textContent = '';
+  nextEl.style.display = 'none';
+
+  const typeInterval = setInterval(() => {
+    if (dialogCharIdx < line.text.length) {
+      textEl.textContent += line.text[dialogCharIdx];
+      dialogCharIdx++;
+    } else {
+      clearInterval(typeInterval);
+      dialogDone = true;
+      nextEl.style.display = 'inline';
+    }
+  }, 35);
+}
+
+document.addEventListener('click', (e) => {
+  if (missionBoardOpen) return; // don't advance dialog while board is open
+  if (dialogActive && dialogDone) nextLine();
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && agentPanelOpen) { closeAgentPanel(); return; }
+  if (e.key === 'Escape' && missionBoardOpen) { closeMissionBoard(); return; }
+  if (missionBoardOpen || agentPanelOpen) return;
+  if (e.key === ' ' || e.key === 'Enter') {
+    if (dialogActive && dialogDone) nextLine();
+  }
+});
+
+// ── AGENT AI ──
+function isWalkable(x, y) {
+  const tx = Math.round(x);
+  const ty = Math.round(y);
+  if (tx < 0 || tx >= COLS || ty < 0 || ty >= ROWS) return false;
+  return !SOLID.has(MAP[ty][tx]);
+}
+
+function pickTarget(agent) {
+  for (let i = 0; i < 30; i++) {
+    const range = 6;
+    const cx = agent.home.x + (Math.random() - 0.5) * range * 2;
+    const cy = agent.home.y + (Math.random() - 0.5) * range * 2;
+    const tx = Math.max(1, Math.min(COLS-2, Math.round(cx)));
+    const ty = Math.max(1, Math.min(ROWS-2, Math.round(cy)));
+    if (isWalkable(tx, ty)) return { x: tx, y: ty };
+  }
+  return { x: agent.home.x, y: agent.home.y };
+}
+
+function dist(a, b) {
+  return Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
+}
+
+// ── A* PATHFINDING ──
+function findPath(sx, sy, ex, ey) {
+  const startX = Math.round(sx), startY = Math.round(sy);
+  const endX = Math.round(ex), endY = Math.round(ey);
+  if (!isWalkable(endX, endY)) return null;
+  if (startX === endX && startY === endY) return [{x: endX, y: endY}];
+
+  const key = (x, y) => (x << 8) | y;
+  const open = [];
+  const closed = new Set();
+  const gMap = new Map();
+  const parents = new Map();
+
+  const h = (x, y) => Math.abs(x - endX) + Math.abs(y - endY);
+  const startKey = key(startX, startY);
+  open.push({ x: startX, y: startY, f: h(startX, startY) });
+  gMap.set(startKey, 0);
+
+  const DIRS = [[0,1],[0,-1],[1,0],[-1,0]];
+
+  while (open.length > 0) {
+    // Find lowest f-score
+    let bestIdx = 0;
+    for (let i = 1; i < open.length; i++) {
+      if (open[i].f < open[bestIdx].f) bestIdx = i;
+    }
+    const cur = open.splice(bestIdx, 1)[0];
+    const ck = key(cur.x, cur.y);
+
+    if (cur.x === endX && cur.y === endY) {
+      // Reconstruct path
+      const path = [];
+      let k = ck;
+      while (k !== undefined) {
+        path.unshift({ x: k >> 8, y: k & 0xFF });
+        k = parents.get(k);
+      }
+      return path.length > 1 ? path.slice(1) : path; // skip start tile
+    }
+
+    closed.add(ck);
+    const g = gMap.get(ck);
+
+    for (const [dx, dy] of DIRS) {
+      const nx = cur.x + dx, ny = cur.y + dy;
+      const nk = key(nx, ny);
+      if (closed.has(nk) || !isWalkable(nx, ny)) continue;
+      const ng = g + 1;
+      if (gMap.has(nk) && ng >= gMap.get(nk)) continue;
+      gMap.set(nk, ng);
+      parents.set(nk, ck);
+      open.push({ x: nx, y: ny, f: ng + h(nx, ny) });
+    }
+
+    if (closed.size > 500) return null; // safety limit
+  }
+  return null;
+}
+
+function setAgentPath(agent, destX, destY) {
+  const path = findPath(agent.x, agent.y, destX, destY);
+  if (path && path.length > 0) {
+    agent.path = path;
+    agent.pathIdx = 0;
+    agent.tx = path[0].x;
+    agent.ty = path[0].y;
+  }
+}
+
+let lastConvoTime = 0;
+let convoPair = '';
+
+function updateAgents(dt) {
+  const now = Date.now();
+
+  for (const agent of agents) {
+    // Clear old bubbles
+    if (agent.bubble && now - agent.bubbleStart > agent.bubble.length * 60 + 2500) {
+      agent.bubble = null;
+    }
+
+    if (dialogActive) { agent.walking = false; continue; }
+
+    // ── Schedule check every 15 seconds ──
+    if (now - agent.lastScheduleCheck > 15000) {
+      agent.lastScheduleCheck = now;
+      const scheduled = getSchedule(agent);
+
+      if (scheduled !== agent.activity) {
+        agent.activity = scheduled;
+        agent.activityTimer = 0;
+        const target = getActivityTarget(agent, scheduled);
+        if (target && isWalkable(target.x, target.y)) {
+          setAgentPath(agent, target.x, target.y);
+        }
+      }
+    }
+
+    // ── Path following ──
+    const dx = agent.tx - agent.x;
+    const dy = agent.ty - agent.y;
+    const d = Math.sqrt(dx * dx + dy * dy);
+
+    if (d < 0.15) {
+      // Reached current waypoint
+      agent.x = Math.round(agent.x);
+      agent.y = Math.round(agent.y);
+      agent.walking = false;
+
+      // Advance to next waypoint in path
+      if (agent.path.length > 0 && agent.pathIdx < agent.path.length - 1) {
+        agent.pathIdx++;
+        agent.tx = agent.path[agent.pathIdx].x;
+        agent.ty = agent.path[agent.pathIdx].y;
+      } else {
+        // Arrived at final destination — do activity idle behavior
+        agent.path = [];
+        agent.pathIdx = 0;
+        agent.activityTimer += dt;
+
+        if (agent.activity === 'sleeping') {
+          agent.dir = 0;
+        } else if (agent.activity === 'working') {
+          // Small fidgets near workstation
+          if (agent.activityTimer > 5000 + Math.random() * 3000) {
+            const jx = Math.round(agent.x) + (Math.random() > 0.5 ? 1 : -1);
+            const jy = Math.round(agent.y) + (Math.random() > 0.5 ? 1 : 0);
+            if (isWalkable(jx, jy)) {
+              agent.tx = jx; agent.ty = jy;
+            }
+            agent.activityTimer = 0;
+          }
+        } else if (agent.activity === 'break' || agent.activity === 'visiting' || agent.activity === 'waking') {
+          agent.idleTimer -= dt;
+          if (agent.idleTimer <= 0) {
+            const t = pickTarget(agent);
+            setAgentPath(agent, t.x, t.y);
+            agent.idleTimer = 3000 + Math.random() * 4000;
+          }
+        } else if (agent.activity === 'meeting') {
+          if (agent.x < 10) agent.dir = 3;
+          else if (agent.x > 10) agent.dir = 2;
+          else agent.dir = 0;
+        } else {
+          // Default idle wander
+          agent.idleTimer -= dt;
+          if (agent.idleTimer <= 0) {
+            const t = pickTarget(agent);
+            setAgentPath(agent, t.x, t.y);
+            agent.idleTimer = 2000 + Math.random() * 3000;
+          }
+        }
+
+        showActivityBubble(agent);
+      }
+    } else {
+      // Walking toward current waypoint
+      if (agent.activity === 'sleeping') { agent.walking = false; continue; }
+
+      agent.walking = true;
+      const step = agent.speed * dt;
+
+      // Move one axis at a time toward waypoint
+      if (Math.abs(dx) >= Math.abs(dy)) {
+        const nx = agent.x + Math.sign(dx) * Math.min(step, Math.abs(dx));
+        if (isWalkable(Math.round(nx), Math.round(agent.y))) {
+          agent.x = nx;
+          agent.dir = dx > 0 ? 3 : 2;
+        } else {
+          // Try y-axis instead
+          if (dy !== 0) {
+            const ny = agent.y + Math.sign(dy) * Math.min(step, Math.abs(dy));
+            if (isWalkable(Math.round(agent.x), Math.round(ny))) {
+              agent.y = ny;
+              agent.dir = dy > 0 ? 0 : 1;
+            }
+          }
+        }
+      } else {
+        const ny = agent.y + Math.sign(dy) * Math.min(step, Math.abs(dy));
+        if (isWalkable(Math.round(agent.x), Math.round(ny))) {
+          agent.y = ny;
+          agent.dir = dy > 0 ? 0 : 1;
+        } else {
+          if (dx !== 0) {
+            const nx = agent.x + Math.sign(dx) * Math.min(step, Math.abs(dx));
+            if (isWalkable(Math.round(nx), Math.round(agent.y))) {
+              agent.x = nx;
+              agent.dir = dx > 0 ? 3 : 2;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // Conversations — when agents are close and not walking
+  if (!dialogActive && now - lastConvoTime > 12000) {
+    for (let i = 0; i < agents.length; i++) {
+      for (let j = i + 1; j < agents.length; j++) {
+        const a = agents[i], b = agents[j];
+        if (a.activity === 'sleeping' || b.activity === 'sleeping') continue;
+        if (dist(a, b) < 2.5 && !a.walking && !b.walking) {
+          const pair = [a.name, b.name].sort().join('-');
+          if (pair === convoPair) continue;
+          const dialog = DIALOGS.find(d =>
+            (d.a === a.name && d.b === b.name) || (d.a === b.name && d.b === a.name)
+          );
+          if (dialog) {
+            if (a.x < b.x) { a.dir = 3; b.dir = 2; }
+            else if (a.x > b.x) { a.dir = 2; b.dir = 3; }
+            else if (a.y < b.y) { a.dir = 0; b.dir = 1; }
+            else { a.dir = 1; b.dir = 0; }
+            showDialog(dialog.lines);
+            lastConvoTime = now;
+            convoPair = pair;
+            break;
+          }
+        }
+      }
+    }
+  }
+}
+
+// ── MISSION BOARD ──
+const BOARD_POS = { x: 10, y: 8 }; // map tile position
+let missionBoardOpen = false;
+
+const MISSIONS = [
+  {
+    id: 'MSN-001',
+    title: 'Family Activation',
+    status: 'active',
+    agents: ['robin', 'sherlock', 'jarvis', 'stark'],
+    desc: 'Deploy all 4 family members and complete one collaborative task.',
+    checklist: [
+      { text: 'Robin identity defined', done: true },
+      { text: 'Sherlock identity defined', done: true },
+      { text: 'Jarvis identity defined', done: true },
+      { text: 'Stark identity defined', done: true },
+      { text: 'Communication protocols', done: true },
+      { text: 'First collaborative task', done: false },
+      { text: 'All agents show voice', done: false },
+    ],
+    log: { who: 'Robin', time: '00:30', text: 'ครอบครัวพร้อมแล้ว. รอภารกิจแรกจากมนุษย์.' },
+  },
+  {
+    id: 'MSN-002',
+    title: 'Spark Monitor Enhancement',
+    status: 'complete',
+    agents: ['stark', 'jarvis'],
+    desc: 'Build monitor page with groups, drag & drop, signal tracking.',
+    checklist: [
+      { text: 'Sidebar with groups', done: true },
+      { text: 'Drag & drop stocks', done: true },
+      { text: 'Green fill bars', done: true },
+      { text: 'Signal badge system', done: true },
+      { text: 'Minimize/maximize cards', done: true },
+      { text: 'Yahoo Finance v3 fix', done: true },
+    ],
+    log: { who: 'Stark', time: '08:15', text: 'All shipped. Sidebar groups + drag & drop + fill bars. Clean.' },
+  },
+  {
+    id: 'MSN-003',
+    title: 'Stock Research Pipeline',
+    status: 'pending',
+    agents: ['sherlock', 'jarvis'],
+    desc: 'Sherlock researches → Jarvis indexes → patterns emerge.',
+    checklist: [
+      { text: 'Sherlock scans market data', done: false },
+      { text: 'Jarvis indexes findings', done: false },
+      { text: 'Cross-reference patterns', done: false },
+      { text: 'Report to Robin', done: false },
+    ],
+    log: { who: 'Sherlock', time: '--:--', text: 'Awaiting first research target from Robin.' },
+  },
+  {
+    id: 'MSN-004',
+    title: 'Family HQ Dashboard',
+    status: 'active',
+    agents: ['stark', 'robin'],
+    desc: 'Build visual HQ where agents walk, talk, and track missions.',
+    checklist: [
+      { text: 'Tile map world', done: true },
+      { text: 'Character sprites', done: true },
+      { text: 'Agent conversations', done: true },
+      { text: 'Mission board', done: true },
+      { text: 'Agent status indicators', done: false },
+    ],
+    log: { who: 'Stark', time: '08:20', text: 'Canvas engine running. FF vibes achieved.' },
+  },
+  {
+    id: 'MSN-005',
+    title: 'Skill Acquisition — Learn from GitHub',
+    status: 'complete',
+    agents: ['robin', 'sherlock', 'jarvis', 'stark'],
+    desc: 'All family members study top open source repos to level up their skills.',
+    checklist: [
+      { text: 'Robin: anthropic-cookbook + MCP servers', done: true },
+      { text: 'Sherlock: yfinance + ta + pandas-ta', done: true },
+      { text: 'Jarvis: chroma + llama_index + langchain', done: true },
+      { text: 'Stark: next.js + shadcn/ui + TanStack', done: true },
+      { text: 'All learnings indexed in Panya', done: true },
+      { text: 'Each agent reports takeaways', done: true },
+    ],
+    log: { who: 'Robin', time: '09:15', text: 'ทุกคนกลับมาแล้ว! 11 repos, 4 agents, ความรู้เต็มพิกัด.' },
+  },
+  {
+    id: 'MSN-006',
+    title: 'AI Cash Machine Empire',
+    status: 'active',
+    agents: ['robin', 'sherlock', 'jarvis', 'stark'],
+    desc: 'Build revenue-generating AI products: Spark Pro, Agent API, Panya Cloud.',
+    checklist: [
+      { text: 'Empire plan & revenue streams', done: true },
+      { text: 'Landing page', done: true },
+      { text: 'Spark Pro pricing page', done: true },
+      { text: 'Agent API: /analyze endpoint', done: true },
+      { text: 'Agent API: /signal endpoint', done: true },
+      { text: 'Agent API: /research endpoint', done: true },
+      { text: 'Stripe integration', done: false },
+      { text: 'User authentication', done: false },
+      { text: 'Panya Cloud MVP', done: false },
+      { text: 'First paying customer', done: false },
+    ],
+    log: { who: 'Robin', time: '09:30', text: 'Empire foundation built. 3 products planned. 3 API endpoints live. Target: $76K/year.' },
+  },
+];
+
+function renderMissionBoard() {
+  const list = document.getElementById('mission-list');
+  list.innerHTML = '';
+  for (const m of MISSIONS) {
+    const card = document.createElement('div');
+    card.className = 'mission-card';
+    const doneCount = m.checklist.filter(c => c.done).length;
+    const totalCount = m.checklist.length;
+    const pct = Math.round(doneCount / totalCount * 100);
+    card.innerHTML = `
+      <div class="mission-head">
+        <div class="mission-title">
+          <span class="mission-id">${m.id} — ${pct}% complete</span>
+          ${m.title}
+        </div>
+        <span class="mission-status ${m.status}">${m.status.toUpperCase()}</span>
+      </div>
+      <div class="mission-agents">
+        ${m.agents.map(a => `<span class="agent-tag ${a}">${a}</span>`).join('')}
+      </div>
+      <div class="mission-detail">
+        <ul class="checklist">
+          ${m.checklist.map(c => `<li class="${c.done ? 'done' : ''}">${c.text}</li>`).join('')}
+        </ul>
+        <div class="log-entry">
+          <span class="log-who">${m.log.who}</span> [${m.log.time}] — ${m.log.text}
+        </div>
+      </div>
+    `;
+    card.addEventListener('click', () => card.classList.toggle('expanded'));
+    list.appendChild(card);
+  }
+}
+
+function openMissionBoard() {
+  missionBoardOpen = true;
+  renderMissionBoard();
+  document.getElementById('mission-board').classList.add('open');
+  // Sound
+  try {
+    const ac = new AudioContext();
+    const osc = ac.createOscillator();
+    const gain = ac.createGain();
+    osc.connect(gain); gain.connect(ac.destination);
+    osc.type = 'square';
+    osc.frequency.value = 880;
+    gain.gain.setValueAtTime(0.06, ac.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.15);
+    osc.start(ac.currentTime);
+    osc.stop(ac.currentTime + 0.15);
+    // Second note
+    const osc2 = ac.createOscillator();
+    const gain2 = ac.createGain();
+    osc2.connect(gain2); gain2.connect(ac.destination);
+    osc2.type = 'square';
+    osc2.frequency.value = 1100;
+    gain2.gain.setValueAtTime(0.06, ac.currentTime + 0.08);
+    gain2.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.25);
+    osc2.start(ac.currentTime + 0.08);
+    osc2.stop(ac.currentTime + 0.25);
+  } catch {}
+}
+
+function closeMissionBoard() {
+  missionBoardOpen = false;
+  document.getElementById('mission-board').classList.remove('open');
+}
+
+// ── AGENT SKILLS ──
+const AGENT_SKILLS = {
+  robin: [
+    'Orchestrator-Subagents pattern',
+    'Prompt caching (3.3x speed)',
+    'MCP server architecture',
+    'Sequential Thinking',
+    'Family coordination',
+    'Empire strategy & revenue planning',
+  ],
+  sherlock: [
+    'yfinance data pipeline',
+    '43 ta indicators',
+    '150+ pandas-ta indicators',
+    'Candlestick patterns (62)',
+    'Financial data analysis',
+    'Signal detection engine',
+  ],
+  jarvis: [
+    'Chroma vector DB internals',
+    'LlamaIndex RAG pipeline',
+    'LangChain 3-layer memory',
+    'Hybrid retrieval strategy',
+    'Knowledge graph CRUD',
+    'Panya Cloud architecture',
+  ],
+  stark: [
+    'Next.js Server Components',
+    'shadcn/ui composition',
+    'TanStack Query caching',
+    'Drag & drop systems',
+    'Canvas game engine',
+    'REST API development',
+    'SaaS pricing systems',
+  ],
+};
+
+const AGENT_MISSIONS_DONE = {
+  robin: ['MSN-001','MSN-004','MSN-005','MSN-006'],
+  sherlock: ['MSN-005','MSN-006'],
+  jarvis: ['MSN-002','MSN-005','MSN-006'],
+  stark: ['MSN-002','MSN-004','MSN-005','MSN-006'],
+};
+
+// ── 24-HOUR LIFE SYSTEM ──
+const WORKSTATIONS = {
+  robin: { x: 4, y: 4 },
+  sherlock: { x: 4, y: 12 },
+  jarvis: { x: 16, y: 4 },
+  stark: { x: 16, y: 12 },
+};
+const HANGOUT_SPOTS = [
+  { x: 10, y: 7 }, { x: 10, y: 9 }, { x: 8, y: 8 }, { x: 12, y: 8 },
+  { x: 6, y: 7 }, { x: 14, y: 7 }, { x: 6, y: 9 }, { x: 14, y: 9 },
+];
+
+const WORK_BUBBLES = {
+  robin: ['Coordinating...', 'Planning strategy...', 'Reviewing team...', 'จัดลำดับ...', 'Mission update...', 'Checking signals...'],
+  sherlock: ['Analyzing data...', 'Pattern found!', 'Cross-referencing...', 'RSI divergence...', 'The data shows...', 'Calculating EMA...'],
+  jarvis: ['Indexing...', 'Memory updated.', 'Archiving insight...', 'Pattern logged.', 'Vector stored.', 'Knowledge +1'],
+  stark: ['Building...', 'Deploying...', 'npm run build...', 'Fixing bug...', 'Shipping feature...', 'Code review...'],
+};
+const BREAK_BUBBLES = {
+  robin: ['Nice day...', 'เหนื่อยนิดหน่อย', '☕ Coffee', '*stretching*', 'ลมเย็นดีจัง'],
+  sherlock: ['Hmm...curious.', '*observing*', 'Need more data.', 'Fascinating...', 'Elementary.'],
+  jarvis: ['Systems nominal.', 'All quiet.', 'Updating cache...', '*processing*', 'Standby mode.'],
+  stark: ['*tinkering*', 'What if I...', 'That could work!', 'Need more ☕', 'Prototype time.'],
+};
+const SLEEP_BUBBLES = ['Zzz...', 'zzz', '💤', '...zzz...', 'Zzz'];
+const VISIT_BUBBLES = ['Hey!', 'Check this out!', 'Got a minute?', 'Nice work!', 'How\'s it going?', 'Look at this!'];
+
+function getCurrentHour() { return new Date().getHours(); }
+function getCurrentMinute() { return new Date().getMinutes(); }
+
+function getTimeOfDay() {
+  const h = getCurrentHour();
+  if (h >= 0 && h < 6) return 'night';
+  if (h >= 6 && h < 8) return 'dawn';
+  if (h >= 8 && h < 12) return 'morning';
+  if (h >= 12 && h < 14) return 'midday';
+  if (h >= 14 && h < 18) return 'afternoon';
+  if (h >= 18 && h < 20) return 'evening';
+  if (h >= 20 && h < 22) return 'dusk';
+  return 'night';
+}
+
+function getDayNightAlpha() {
+  const h = getCurrentHour() + getCurrentMinute() / 60;
+  if (h >= 7 && h <= 17) return 0;
+  if (h > 17 && h < 22) return (h - 17) / 5 * 0.4;
+  if (h >= 22 || h < 5) return 0.4;
+  if (h >= 5 && h < 7) return (1 - (h - 5) / 2) * 0.4;
+  return 0;
+}
+
+function getSkyColor() {
+  const tod = getTimeOfDay();
+  const colors = { night: '#0a0a2a', dawn: '#4a3060', morning: '#2244aa', midday: '#3366cc', afternoon: '#2255bb', evening: '#553355', dusk: '#1a1040' };
+  return colors[tod] || '#2244aa';
+}
+
+function isNightTime() {
+  const h = getCurrentHour();
+  return h >= 22 || h < 6;
+}
+
+// Schedule: what should agent be doing right now? (deterministic — no Math.random)
+function getSchedule(agent) {
+  const h = getCurrentHour();
+  const m = getCurrentMinute();
+  const q = Math.floor(m / 15); // 0-3 quarter of hour
+  const idx = agents.indexOf(agent); // 0-3
+
+  if (h >= 0 && h < 6) return 'sleeping';
+  if (h === 6) return 'waking';
+  if (h === 7) return q < 2 ? 'meeting' : 'working';
+  if (h >= 8 && h < 12) {
+    if (h === 10 && q === 2) return 'break';
+    if (q === ((idx + 1) % 4)) return 'visiting'; // each agent visits at different quarter
+    return 'working';
+  }
+  if (h === 12) return 'break';
+  if (h >= 13 && h < 17) {
+    if (h === 15 && q === 0) return 'meeting';
+    if (q === ((idx + 2) % 4)) return 'visiting';
+    return 'working';
+  }
+  if (h === 17) return q < 2 ? 'meeting' : 'break';
+  if (h >= 18 && h < 20) {
+    // Alternate break/visiting every 15min, staggered per agent
+    return (q + idx) % 2 === 0 ? 'break' : 'visiting';
+  }
+  if (h >= 20 && h < 22) return 'heading_home';
+  return 'sleeping';
+}
+
+function getActivityTarget(agent, activity) {
+  switch (activity) {
+    case 'sleeping':
+    case 'heading_home':
+    case 'waking':
+      return { x: agent.home.x, y: agent.home.y };
+    case 'working':
+      return WORKSTATIONS[agent.name];
+    case 'meeting': {
+      // Gather around mission board — these tiles are walkable (grass)
+      const meetSpots = [{x:8,y:7},{x:11,y:7},{x:8,y:9},{x:11,y:9}];
+      return meetSpots[agents.indexOf(agent) % meetSpots.length];
+    }
+    case 'break': {
+      const spot = HANGOUT_SPOTS[Math.floor(Math.random() * HANGOUT_SPOTS.length)];
+      return { x: spot.x, y: spot.y };
+    }
+    case 'visiting': {
+      const others = agents.filter(a => a.name !== agent.name);
+      const target = others[Math.floor(Math.random() * others.length)];
+      return WORKSTATIONS[target.name];
+    }
+    default:
+      return pickTarget(agent);
+  }
+}
+
+function showActivityBubble(agent) {
+  if (agent.bubble) return;
+  let pool;
+  switch (agent.activity) {
+    case 'sleeping': pool = SLEEP_BUBBLES; break;
+    case 'working': pool = WORK_BUBBLES[agent.name]; break;
+    case 'break': case 'waking': pool = BREAK_BUBBLES[agent.name]; break;
+    case 'visiting': pool = VISIT_BUBBLES; break;
+    case 'meeting': pool = ['📋 Review time', 'Status update...', 'What\'s next?', 'Good progress!', 'Let\'s plan...']; break;
+    default: return;
+  }
+  if (pool && Math.random() < 0.008) {
+    agent.bubble = pool[Math.floor(Math.random() * pool.length)];
+    agent.bubbleStart = Date.now();
+  }
+}
+
+// ── AMBIENT PARTICLES ──
+const particles = [];
+const MAX_PARTICLES = 25;
+
+function spawnParticle() {
+  const tod = getTimeOfDay();
+  if (tod === 'night' || tod === 'dusk') {
+    particles.push({
+      type: 'firefly', x: Math.random() * COLS * TILE, y: 4 * TILE + Math.random() * 10 * TILE,
+      vx: (Math.random() - 0.5) * 0.3, vy: (Math.random() - 0.5) * 0.2,
+      life: 4000 + Math.random() * 5000, born: Date.now(), phase: Math.random() * 10,
+    });
+  } else if (tod === 'morning' || tod === 'afternoon' || tod === 'midday') {
+    particles.push({
+      type: 'mote', x: -2, y: 2 * TILE + Math.random() * 12 * TILE,
+      vx: 0.08 + Math.random() * 0.12, vy: Math.sin(Math.random() * 6) * 0.03,
+      life: 10000, born: Date.now(), phase: Math.random() * 10,
+    });
+  } else if (tod === 'dawn' || tod === 'evening') {
+    particles.push({
+      type: 'sparkle', x: Math.random() * COLS * TILE, y: Math.random() * ROWS * TILE,
+      vx: 0, vy: -0.02,
+      life: 2000 + Math.random() * 2000, born: Date.now(), phase: Math.random() * 10,
+    });
+  }
+}
+
+function updateParticles() {
+  const now = Date.now();
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i];
+    if (now - p.born > p.life) { particles.splice(i, 1); continue; }
+    p.x += p.vx; p.y += p.vy;
+    if (p.type === 'firefly') {
+      p.vx += (Math.random() - 0.5) * 0.08;
+      p.vy += (Math.random() - 0.5) * 0.06;
+      p.vx = Math.max(-0.4, Math.min(0.4, p.vx));
+      p.vy = Math.max(-0.3, Math.min(0.3, p.vy));
+    }
+  }
+  if (particles.length < MAX_PARTICLES && Math.random() < 0.03) spawnParticle();
+}
+
+function drawParticles() {
+  const now = Date.now();
+  for (const p of particles) {
+    const age = (now - p.born) / p.life;
+    const fade = age < 0.15 ? age / 0.15 : age > 0.75 ? (1 - age) / 0.25 : 1;
+    if (p.type === 'firefly') {
+      const pulse = 0.4 + Math.sin(now / 250 + p.phase) * 0.6;
+      ctx.fillStyle = `rgba(180, 255, 80, ${fade * pulse * 0.7})`;
+      ctx.fillRect(p.x, p.y, 1, 1);
+      ctx.fillStyle = `rgba(180, 255, 80, ${fade * pulse * 0.15})`;
+      ctx.fillRect(p.x - 1, p.y - 1, 3, 3);
+    } else if (p.type === 'mote') {
+      ctx.fillStyle = `rgba(255, 255, 230, ${fade * 0.25})`;
+      ctx.fillRect(p.x, p.y, 1, 1);
+    } else {
+      const pulse = 0.5 + Math.sin(now / 300 + p.phase) * 0.5;
+      ctx.fillStyle = `rgba(200, 180, 255, ${fade * pulse * 0.4})`;
+      ctx.fillRect(p.x, p.y, 1, 1);
+    }
+  }
+}
+
+// Stars for night sky
+const stars = Array.from({ length: 50 }, () => ({
+  x: Math.random() * COLS * TILE, y: Math.random() * 2.5 * TILE,
+  twinkleSpeed: 300 + Math.random() * 700, phase: Math.random() * 1000,
+}));
+
+function drawStars() {
+  const alpha = getDayNightAlpha();
+  if (alpha < 0.05) return;
+  const now = Date.now();
+  for (const s of stars) {
+    const twinkle = 0.2 + Math.sin(now / s.twinkleSpeed + s.phase) * 0.6;
+    ctx.fillStyle = `rgba(255, 255, 255, ${Math.min(1, alpha * 2) * twinkle})`;
+    ctx.fillRect(s.x, s.y, 1, 1);
+  }
+}
+
+let agentPanelOpen = false;
+
+function openAgentPanel(agent, screenX, screenY) {
+  const panel = document.getElementById('agent-panel');
+  const lv = getLevelFromXP(agent.xp);
+  const prog = xpProgress(agent.xp);
+  const currXP = xpForLevel(lv);
+  const nextXP = xpForLevel(lv + 1);
+  const skills = AGENT_SKILLS[agent.name] || [];
+  const missions = AGENT_MISSIONS_DONE[agent.name] || [];
+  const barColor = lv >= 5 ? '#ff6b9d' : lv >= 3 ? '#50fa7b' : '#4ecdc4';
+
+  const activityLabels = { sleeping: '💤 Sleeping', working: '⚡ Working', meeting: '📋 Meeting', break: '☕ Break', visiting: '👋 Visiting', waking: '🌅 Waking up', heading_home: '🏠 Going home', idle: '— Idle' };
+  const actLabel = activityLabels[agent.activity] || agent.activity;
+
+  panel.innerHTML = `
+    <div class="ap-name" style="color:${AGENT_COLORS[agent.name].body}">${agent.name.charAt(0).toUpperCase() + agent.name.slice(1)}</div>
+    <span class="ap-class">${AGENT_CLASS[agent.name]} — Trust Lv.${Math.min(3, Math.ceil(lv/2))}</span>
+    <div class="ap-row"><span class="label">STATUS</span><span style="color:#50fa7b">${actLabel}</span></div>
+    <div class="ap-row"><span class="label">LEVEL</span><span>${lv}</span></div>
+    <div class="ap-xpbar"><div class="fill" style="width:${Math.round(prog*100)}%;background:${barColor}"></div></div>
+    <div class="ap-row"><span class="label">XP</span><span>${agent.xp} / ${nextXP}</span></div>
+    <div class="ap-row"><span class="label">MISSIONS</span><span>${missions.length} done</span></div>
+    <div class="ap-skills">
+      SKILLS<br>
+      ${skills.map(s => `<span>▸</span> ${s}`).join('<br>')}
+    </div>
+  `;
+
+  // Position near click but keep on screen
+  const pw = 260;
+  const ph = 280;
+  let left = screenX + 20;
+  let top = screenY - 40;
+  if (left + pw > window.innerWidth) left = screenX - pw - 20;
+  if (top + ph > window.innerHeight) top = window.innerHeight - ph - 10;
+  if (top < 10) top = 10;
+  panel.style.left = left + 'px';
+  panel.style.top = top + 'px';
+  panel.classList.add('open');
+  agentPanelOpen = true;
+}
+
+function closeAgentPanel() {
+  document.getElementById('agent-panel').classList.remove('open');
+  agentPanelOpen = false;
+}
+
+// Click detection on canvas for mission board + agents
+canvas.addEventListener('click', (e) => {
+  if (!started || dialogActive || missionBoardOpen) return;
+
+  // Close agent panel if open
+  if (agentPanelOpen) { closeAgentPanel(); return; }
+
+  const rect = canvas.getBoundingClientRect();
+  const mx = (e.clientX - rect.left) / SCALE / TILE;
+  const my = (e.clientY - rect.top) / SCALE / TILE;
+
+  // Check if clicked on an agent
+  for (const agent of agents) {
+    if (Math.abs(mx - agent.x - 0.5) < 1 && Math.abs(my - agent.y - 0.5) < 1) {
+      openAgentPanel(agent, e.clientX, e.clientY);
+      return;
+    }
+  }
+
+  // Check if clicked near the mission board
+  if (Math.abs(mx - BOARD_POS.x - 0.5) < 1.5 && Math.abs(my - BOARD_POS.y - 0.5) < 1.5) {
+    openMissionBoard();
+  }
+});
+
+// ── GAME LOOP ──
+let lastTime = 0;
+let animFrame = 0;
+let started = false;
+
+function gameLoop(time) {
+  if (!started) { requestAnimationFrame(gameLoop); return; }
+  const dt = Math.min(time - lastTime, 50);
+  lastTime = time;
+
+  if (time % 200 < 16) animFrame++;
+
+  ctx.save();
+  ctx.scale(SCALE, SCALE);
+
+  // Draw map
+  for (let y = 0; y < ROWS; y++) {
+    for (let x = 0; x < COLS; x++) {
+      drawTile(x, y, MAP[y][x]);
+    }
+  }
+
+  // Building labels
+  ctx.fillStyle = '#fff';
+  ctx.font = '4px monospace';
+  ctx.fillText('ROBIN', 3*TILE+1, 1*TILE+6);
+  ctx.fillText('HQ', 3*TILE+5, 1*TILE+12);
+  ctx.fillText('SHERLOCK', 3*TILE-2, 14*TILE+6);
+  ctx.fillText('LAB', 3*TILE+4, 14*TILE+12);
+  ctx.fillText('JARVIS', 15*TILE+2, 1*TILE+6);
+  ctx.fillText('ARCHIVE', 15*TILE, 1*TILE+12);
+  ctx.fillText('STARK', 15*TILE+2, 14*TILE+6);
+  ctx.fillText('WORKSHOP', 15*TILE-2, 14*TILE+12);
+
+  // ── PARTY HUD (top-right) ──
+  const hudX = COLS * TILE - 60;
+  const hudY = 3;
+  // Panel background
+  ctx.fillStyle = 'rgba(17,17,51,0.85)';
+  ctx.fillRect(hudX - 3, hudY - 2, 62, 48);
+  ctx.strokeStyle = '#4444aa';
+  ctx.lineWidth = 0.5;
+  ctx.strokeRect(hudX - 3, hudY - 2, 62, 48);
+  // Title
+  ctx.fillStyle = '#ffe66d';
+  ctx.font = '3px monospace';
+  ctx.fillText('PARTY', hudX + 18, hudY + 3);
+
+  for (let i = 0; i < agents.length; i++) {
+    const a = agents[i];
+    const ac = AGENT_COLORS[a.name];
+    const hy = hudY + 7 + i * 10;
+    const lv = getLevelFromXP(a.xp);
+    const prog = xpProgress(a.xp);
+    const nextXP = xpForLevel(lv + 1);
+
+    // Color dot — pulsing if working, dim if sleeping
+    const dotAlpha = a.activity === 'sleeping' ? 0.3 : a.activity === 'working' ? (0.7 + Math.sin(Date.now() / 400 + i) * 0.3) : 1;
+    ctx.globalAlpha = dotAlpha;
+    ctx.fillStyle = ac.body;
+    ctx.fillRect(hudX, hy, 3, 3);
+    ctx.globalAlpha = 1;
+    // Name
+    ctx.fillStyle = a.activity === 'sleeping' ? '#666688' : '#cccce8';
+    ctx.font = '3px monospace';
+    ctx.fillText(a.name.substring(0,5).toUpperCase(), hudX + 5, hy + 3);
+    // Level
+    ctx.fillStyle = '#ffe66d';
+    ctx.fillText('Lv' + lv, hudX + 30, hy + 3);
+    // XP bar
+    const bx = hudX + 42;
+    const bw = 14;
+    ctx.fillStyle = '#1a1a2e';
+    ctx.fillRect(bx, hy, bw, 3);
+    const bColor = lv >= 5 ? '#ff6b9d' : lv >= 3 ? '#50fa7b' : '#4ecdc4';
+    ctx.fillStyle = bColor;
+    ctx.fillRect(bx, hy, Math.round(bw * prog), 3);
+    ctx.strokeStyle = '#333355';
+    ctx.lineWidth = 0.3;
+    ctx.strokeRect(bx, hy, bw, 3);
+    // XP text under bar
+    ctx.fillStyle = '#5a5a7a';
+    ctx.font = '2px monospace';
+    ctx.fillText(a.xp + '/' + nextXP, bx, hy + 7);
+  }
+
+  // Mission board label
+  ctx.fillStyle = '#ffe66d';
+  ctx.font = '4px monospace';
+  const boardLabelX = BOARD_POS.x * TILE;
+  const boardLabelY = BOARD_POS.y * TILE;
+  ctx.fillText('MISSIONS', boardLabelX - 5, boardLabelY - 2);
+  // Floating arrow hint
+  const arrowBob = Math.sin(Date.now() / 300) * 2;
+  ctx.fillStyle = '#ffe66d';
+  ctx.fillRect(boardLabelX + 6, boardLabelY - 8 + arrowBob, 4, 4);
+  ctx.fillRect(boardLabelX + 5, boardLabelY - 5 + arrowBob, 6, 2);
+
+  // Update & draw agents (sort by Y for depth)
+  updateAgents(dt);
+  updateParticles();
+  const sorted = [...agents].sort((a, b) => a.y - b.y);
+  for (const agent of sorted) {
+    drawSprite(agent, animFrame);
+  }
+
+  // Ambient particles
+  drawParticles();
+
+  // Stars on night sky (water tiles at top)
+  drawStars();
+
+  // Day/Night overlay
+  const nightAlpha2 = getDayNightAlpha();
+  if (nightAlpha2 > 0) {
+    ctx.fillStyle = `rgba(5, 5, 30, ${nightAlpha2})`;
+    ctx.fillRect(0, 0, COLS * TILE, ROWS * TILE);
+  }
+
+  // Clock HUD (bottom-left)
+  const clockH = getCurrentHour().toString().padStart(2, '0');
+  const clockM = getCurrentMinute().toString().padStart(2, '0');
+  const tod = getTimeOfDay();
+  const todLabel = { night: '🌙 NIGHT', dawn: '🌅 DAWN', morning: '☀️ MORNING', midday: '☀️ MIDDAY', afternoon: '☀️ AFTERNOON', evening: '🌆 EVENING', dusk: '🌙 DUSK' };
+  ctx.fillStyle = 'rgba(17,17,51,0.8)';
+  ctx.fillRect(2, ROWS * TILE - 14, 52, 12);
+  ctx.strokeStyle = '#4444aa';
+  ctx.lineWidth = 0.3;
+  ctx.strokeRect(2, ROWS * TILE - 14, 52, 12);
+  ctx.fillStyle = '#ffe66d';
+  ctx.font = '4px monospace';
+  ctx.fillText(clockH + ':' + clockM, 5, ROWS * TILE - 6);
+  ctx.fillStyle = '#8888aa';
+  ctx.font = '3px monospace';
+  ctx.fillText(tod.toUpperCase(), 25, ROWS * TILE - 6);
+
+  ctx.restore();
+  requestAnimationFrame(gameLoop);
+}
+
+function startGame() {
+  document.getElementById('title-screen').style.display = 'none';
+  started = true;
+  // Play a little start chime
+  try {
+    const ac = new AudioContext();
+    const notes = [523, 659, 784, 1047];
+    notes.forEach((freq, i) => {
+      const osc = ac.createOscillator();
+      const gain = ac.createGain();
+      osc.connect(gain); gain.connect(ac.destination);
+      osc.type = 'square';
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0.08, ac.currentTime + i * 0.12);
+      gain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + i * 0.12 + 0.3);
+      osc.start(ac.currentTime + i * 0.12);
+      osc.stop(ac.currentTime + i * 0.12 + 0.3);
+    });
+  } catch {}
+}
+
+requestAnimationFrame(gameLoop);
+
+// ── KEEP ALIVE: handle tab visibility changes ──
+// When tab is backgrounded, rAF pauses. Use setInterval as fallback.
+let bgInterval = null;
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    // Tab hidden — run lightweight update every 500ms
+    bgInterval = setInterval(() => {
+      if (!started) return;
+      updateAgents(500);
+    }, 500);
+  } else {
+    // Tab visible again — stop bg timer, sync time
+    if (bgInterval) { clearInterval(bgInterval); bgInterval = null; }
+    lastTime = performance.now();
+    // Force schedule refresh for all agents
+    for (const agent of agents) {
+      agent.lastScheduleCheck = 0;
+    }
+  }
+});
+
+// Also keep game alive if window loses focus but stays visible
+window.addEventListener('blur', () => {
+  if (!bgInterval && started) {
+    bgInterval = setInterval(() => {
+      updateAgents(500);
+    }, 1000);
+  }
+});
+window.addEventListener('focus', () => {
+  if (bgInterval) { clearInterval(bgInterval); bgInterval = null; }
+  lastTime = performance.now();
+  for (const agent of agents) agent.lastScheduleCheck = 0;
+});
+</script>
+</body>
+</html>
