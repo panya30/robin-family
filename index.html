@@ -1199,33 +1199,52 @@ function isNightTime() {
 }
 
 // Schedule: what should agent be doing right now? (deterministic — no Math.random)
+// Agents NEVER sleep — they run 24/7. Night shift = focused deep work.
 function getSchedule(agent) {
   const h = getCurrentHour();
   const m = getCurrentMinute();
   const q = Math.floor(m / 15); // 0-3 quarter of hour
   const idx = agents.indexOf(agent); // 0-3
 
-  if (h >= 0 && h < 6) return 'sleeping';
-  if (h === 6) return 'waking';
+  // ── Night shift (22:00 - 05:59) — deep work with occasional breaks ──
+  if (h >= 22 || h < 6) {
+    if (q === idx) return 'break'; // staggered 15min break per agent
+    if (h % 2 === 0 && q === 3) return 'visiting'; // visit teammate every 2h
+    return 'working'; // deep focus work
+  }
+
+  // ── Morning transition (06:00 - 07:59) ──
+  if (h === 6) return q < 2 ? 'break' : 'meeting';
   if (h === 7) return q < 2 ? 'meeting' : 'working';
+
+  // ── Day shift (08:00 - 11:59) ──
   if (h >= 8 && h < 12) {
     if (h === 10 && q === 2) return 'break';
-    if (q === ((idx + 1) % 4)) return 'visiting'; // each agent visits at different quarter
+    if (q === ((idx + 1) % 4)) return 'visiting';
     return 'working';
   }
+
+  // ── Lunch (12:00) ──
   if (h === 12) return 'break';
+
+  // ── Afternoon (13:00 - 16:59) ──
   if (h >= 13 && h < 17) {
     if (h === 15 && q === 0) return 'meeting';
     if (q === ((idx + 2) % 4)) return 'visiting';
     return 'working';
   }
+
+  // ── Evening transition (17:00) ──
   if (h === 17) return q < 2 ? 'meeting' : 'break';
-  if (h >= 18 && h < 20) {
-    // Alternate break/visiting every 15min, staggered per agent
-    return (q + idx) % 2 === 0 ? 'break' : 'visiting';
+
+  // ── Evening shift (18:00 - 21:59) — lighter pace ──
+  if (h >= 18 && h < 22) {
+    if (q === ((idx + 1) % 4)) return 'visiting';
+    if (h === 20 && q === 0) return 'meeting'; // evening standup
+    return (q + idx) % 3 === 0 ? 'break' : 'working';
   }
-  if (h >= 20 && h < 22) return 'heading_home';
-  return 'sleeping';
+
+  return 'working'; // fallback — never sleep
 }
 
 function getActivityTarget(agent, activity) {
