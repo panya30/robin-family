@@ -130,6 +130,78 @@
   #title-screen .sub { font-size: 9px; color: #5a5a7a; margin-bottom: 50px; }
   #title-screen .start { font-size: 11px; color: #50fa7b; animation: blink 1.2s step-end infinite; }
   #title-screen .copy { position: absolute; bottom: 30px; font-size: 7px; color: #3a3a5a; }
+
+  /* ── Guide Panel ── */
+  #guide-btn {
+    position: fixed; top: 12px; left: 12px; z-index: 60;
+    width: 36px; height: 36px; border: 2px solid #4444aa; background: #111133;
+    font-family: 'Press Start 2P', monospace; font-size: 16px; color: #ffe66d;
+    cursor: pointer; display: none; align-items: center; justify-content: center;
+    transition: border-color 0.2s, color 0.2s;
+  }
+  #guide-btn:hover { border-color: #ff6b9d; color: #ff6b9d; }
+  #guide-btn.visible { display: flex; }
+
+  #guide-overlay {
+    position: fixed; inset: 0; z-index: 70; display: none;
+    background: rgba(0,0,0,0.75); justify-content: center; align-items: center;
+    font-family: 'Press Start 2P', monospace;
+  }
+  #guide-overlay.open { display: flex; }
+
+  #guide-panel {
+    background: #111133; border: 3px solid #4444aa; width: 620px; max-height: 85vh;
+    overflow-y: auto; position: relative;
+  }
+  #guide-panel::-webkit-scrollbar { width: 6px; }
+  #guide-panel::-webkit-scrollbar-track { background: #0a0a1a; }
+  #guide-panel::-webkit-scrollbar-thumb { background: #333366; }
+
+  #guide-panel .g-header {
+    background: #222255; padding: 12px 16px; border-bottom: 2px solid #4444aa;
+    display: flex; justify-content: space-between; align-items: center;
+    position: sticky; top: 0; z-index: 1;
+  }
+  #guide-panel .g-header h2 { font-size: 12px; color: #ffe66d; }
+  #guide-panel .g-header .close {
+    font-size: 10px; color: #6666aa; cursor: pointer; padding: 4px 8px;
+  }
+  #guide-panel .g-header .close:hover { color: #ff6b9d; }
+  #guide-panel .g-body { padding: 16px; }
+
+  .g-section {
+    margin-bottom: 20px; padding-bottom: 16px;
+    border-bottom: 1px solid #222255;
+  }
+  .g-section:last-child { border-bottom: none; margin-bottom: 0; }
+  .g-section h3 {
+    font-size: 9px; color: #ff6b9d; margin-bottom: 10px;
+    letter-spacing: 1px;
+  }
+  .g-section p, .g-section li {
+    font-size: 7px; color: #a0a0c8; line-height: 2.4;
+  }
+  .g-section ul { list-style: none; padding: 0; }
+  .g-section li { padding-left: 16px; position: relative; }
+  .g-section li::before { content: '▸'; position: absolute; left: 4px; color: #4ecdc4; }
+  .g-key {
+    display: inline-block; background: #222255; border: 1px solid #4444aa;
+    padding: 1px 6px; color: #ffe66d; font-size: 7px; margin: 0 2px;
+  }
+  .g-agent-row {
+    display: flex; align-items: center; gap: 8px;
+    margin-bottom: 8px; padding: 6px 8px; background: #1a1a44;
+    border: 1px solid #222255;
+  }
+  .g-agent-dot { width: 8px; height: 8px; flex-shrink: 0; }
+  .g-agent-name { font-size: 8px; color: #e8e8ff; width: 70px; }
+  .g-agent-role { font-size: 7px; color: #8888aa; flex: 1; }
+  .g-tip {
+    background: #1a1a44; border-left: 3px solid #ffe66d;
+    padding: 8px 12px; margin-top: 8px;
+    font-size: 7px; color: #cccce8; line-height: 2.2;
+  }
+  .g-tip .tip-label { color: #ffe66d; }
 </style>
 </head>
 <body>
@@ -139,6 +211,148 @@
   <div class="sub">— HEADQUARTERS —</div>
   <div class="start">▶ PRESS ANYWHERE TO START</div>
   <div class="copy">© 2026 ROBIN FAMILY ENTERTAINMENT</div>
+</div>
+
+<div id="guide-btn" onclick="openGuide()">?</div>
+
+<div id="guide-overlay">
+  <div id="guide-panel">
+    <div class="g-header">
+      <h2>? COMMANDER'S GUIDE</h2>
+      <span class="close" onclick="closeGuide()">✕ ESC</span>
+    </div>
+    <div class="g-body">
+
+      <!-- MEET THE FAMILY -->
+      <div class="g-section">
+        <h3>◆ MEET THE FAMILY</h3>
+        <div class="g-agent-row">
+          <div class="g-agent-dot" style="background:#ff6b9d"></div>
+          <div class="g-agent-name">ROBIN</div>
+          <div class="g-agent-role">Leader & Strategist — coordinates missions, plans attacks, reviews team</div>
+        </div>
+        <div class="g-agent-row">
+          <div class="g-agent-dot" style="background:#4ecdc4"></div>
+          <div class="g-agent-name">SHERLOCK</div>
+          <div class="g-agent-role">Analyst & Detective — scans SET sectors, finds patterns, calculates signals</div>
+        </div>
+        <div class="g-agent-row">
+          <div class="g-agent-dot" style="background:#ffe66d"></div>
+          <div class="g-agent-name">JARVIS</div>
+          <div class="g-agent-role">Archivist & Memory — indexes knowledge, monitors signals, stores patterns</div>
+        </div>
+        <div class="g-agent-row">
+          <div class="g-agent-dot" style="background:#ff6b35"></div>
+          <div class="g-agent-name">STARK</div>
+          <div class="g-agent-role">Builder & Engineer — ships code, deploys features, runs technical analysis</div>
+        </div>
+      </div>
+
+      <!-- INTERACTIONS -->
+      <div class="g-section">
+        <h3>◇ HOW TO INTERACT</h3>
+        <ul>
+          <li><span class="g-key">CLICK</span> an agent to view their profile — level, XP, skills, status, and mission history</li>
+          <li><span class="g-key">CLICK</span> the glowing <span style="color:#ffe66d">MISSIONS</span> board (center of map) to open the mission board</li>
+          <li><span class="g-key">SPACE</span> or <span class="g-key">CLICK</span> to advance dialog when agents are talking</li>
+          <li><span class="g-key">ESC</span> to close any open panel</li>
+          <li><span class="g-key">?</span> to open this guide</li>
+        </ul>
+        <div class="g-tip">
+          <span class="tip-label">TIP:</span> Watch for speech bubbles! Agents talk about what they're working on. When two agents meet, they trigger conversations with insights about their work.
+        </div>
+      </div>
+
+      <!-- AGENT ACTIVITIES -->
+      <div class="g-section">
+        <h3>▲ AGENT ACTIVITIES</h3>
+        <p>Agents follow a 24/7 schedule — they never sleep. Activities rotate throughout the day:</p>
+        <ul>
+          <li><span style="color:#50fa7b">⚡ WORKING</span> — at their workstation, doing their specialty (scanning, building, indexing...)</li>
+          <li><span style="color:#4ecdc4">📋 MEETING</span> — gathered at the mission board for team sync</li>
+          <li><span style="color:#ffe66d">👋 VISITING</span> — walking to a teammate's workstation to collaborate</li>
+          <li><span style="color:#8888aa">☕ BREAK</span> — taking a short rest, wandering the grounds</li>
+        </ul>
+        <div class="g-tip">
+          <span class="tip-label">NIGHT SHIFT:</span> After 10PM, agents enter deep work mode — focused working with fewer interruptions. They take staggered breaks and occasionally visit teammates.
+        </div>
+      </div>
+
+      <!-- MISSIONS -->
+      <div class="g-section">
+        <h3>⊕ MISSION SYSTEM</h3>
+        <p>Missions are team objectives tracked on the board. Each mission has:</p>
+        <ul>
+          <li><span style="color:#50fa7b">ACTIVE</span> — currently being worked on by assigned agents</li>
+          <li><span style="color:#ffe66d">PENDING</span> — waiting for prerequisites or assignment</li>
+          <li><span style="color:#4ecdc4">COMPLETE</span> — finished! Agents earned XP from this</li>
+        </ul>
+        <p style="margin-top:8px">Click a mission card to expand its checklist and see the latest log entry from the assigned agent.</p>
+        <div class="g-tip">
+          <span class="tip-label">ASSIGN:</span> Missions are assigned through the Spark backend. Use the Spark HQ API to create new missions and assign agents. The game board reflects the current mission state.
+        </div>
+      </div>
+
+      <!-- XP & LEVELING -->
+      <div class="g-section">
+        <h3>⟁ XP & LEVELING</h3>
+        <p>Every agent earns XP through their work. XP is tracked in the party HUD (top-right corner) and persisted in your browser.</p>
+        <ul>
+          <li><span style="color:#50fa7b">Passive XP</span> — agents earn XP every 30 seconds based on activity (working = most XP)</li>
+          <li><span style="color:#ffe66d">Mission XP</span> — completing mission checklist items awards bonus XP</li>
+          <li><span style="color:#ff6b9d">Level ups</span> — each level requires more XP (Lv2 = 200, Lv3 = 500, Lv5 = 1500...)</li>
+          <li><span style="color:#4ecdc4">Trust level</span> — shown on agent profile, increases with agent level</li>
+        </ul>
+        <div class="g-tip">
+          <span class="tip-label">XP BAR COLORS:</span> Teal (Lv1-2) → Green (Lv3-4) → Pink (Lv5+). The bar glows when an agent levels up!
+        </div>
+      </div>
+
+      <!-- SPARK BACKEND -->
+      <div class="g-section">
+        <h3>◈ SPARK BACKEND CONNECTION</h3>
+        <p>When Spark is running on localhost:3002, agents connect to real backend tasks:</p>
+        <ul>
+          <li><span style="color:#ff6b9d">Robin</span> — runs Market Pulse (SET bellwether stocks overview)</li>
+          <li><span style="color:#4ecdc4">Sherlock</span> — runs Industry Scan (all SET sectors, finds uptrends)</li>
+          <li><span style="color:#ffe66d">Jarvis</span> — runs Signal Monitor (checks prediction tickers, RSI alerts)</li>
+          <li><span style="color:#ff6b35">Stark</span> — runs Technical Deep Dive (MACD, Bollinger, buy/sell signals)</li>
+        </ul>
+        <div class="g-tip">
+          <span class="tip-label">AUTOPILOT:</span> Enable autopilot via <span style="color:#50fa7b">POST /api/hq/autopilot</span> to rotate agent tasks automatically. Each agent runs every ~20 minutes on a 5-minute rotation.
+        </div>
+      </div>
+
+      <!-- AGENT SKILLS -->
+      <div class="g-section">
+        <h3>▲ AGENT SKILLS</h3>
+        <p>Each agent has learned specific skills from studying open-source repos and completing missions:</p>
+        <ul>
+          <li><span style="color:#ff6b9d">Robin</span> — MCP servers, prompt caching, orchestrator patterns, empire strategy</li>
+          <li><span style="color:#4ecdc4">Sherlock</span> — 43 TA indicators, candlestick patterns, yfinance pipeline</li>
+          <li><span style="color:#ffe66d">Jarvis</span> — Chroma vector DB, LlamaIndex RAG, hybrid retrieval, knowledge graphs</li>
+          <li><span style="color:#ff6b35">Stark</span> — Next.js, shadcn/ui, TanStack Query, drag & drop, canvas engines, APIs</li>
+        </ul>
+        <p style="margin-top:8px">Click any agent in the game to see their full skill list and mission history.</p>
+      </div>
+
+      <!-- QUICK REFERENCE -->
+      <div class="g-section">
+        <h3>◆ QUICK REFERENCE</h3>
+        <ul>
+          <li><span class="g-key">CLICK agent</span> → View profile, level, skills, activity</li>
+          <li><span class="g-key">CLICK mission board</span> → View all missions and progress</li>
+          <li><span class="g-key">SPACE / CLICK</span> → Advance agent conversations</li>
+          <li><span class="g-key">ESC</span> → Close any panel</li>
+          <li><span class="g-key">?</span> → Toggle this guide</li>
+        </ul>
+        <div class="g-tip">
+          <span class="tip-label">CONVERSATIONS:</span> Agents trigger dialogs when they walk near each other. Each pair has unique conversations about their collaborative work. Just watch and enjoy!
+        </div>
+      </div>
+
+    </div>
+  </div>
 </div>
 
 <canvas id="game"></canvas>
@@ -663,9 +877,11 @@ document.addEventListener('click', (e) => {
   if (dialogActive && dialogDone) nextLine();
 });
 document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && guideOpen) { closeGuide(); return; }
   if (e.key === 'Escape' && agentPanelOpen) { closeAgentPanel(); return; }
   if (e.key === 'Escape' && missionBoardOpen) { closeMissionBoard(); return; }
-  if (missionBoardOpen || agentPanelOpen) return;
+  if (e.key === '?' || e.key === '/') { if (!guideOpen && !dialogActive) openGuide(); else if (guideOpen) closeGuide(); return; }
+  if (guideOpen || missionBoardOpen || agentPanelOpen) return;
   if (e.key === ' ' || e.key === 'Enter') {
     if (dialogActive && dialogDone) nextLine();
   }
@@ -1586,8 +1802,22 @@ function gameLoop(time) {
   requestAnimationFrame(gameLoop);
 }
 
+// ── GUIDE ──
+let guideOpen = false;
+
+function openGuide() {
+  guideOpen = true;
+  document.getElementById('guide-overlay').classList.add('open');
+}
+
+function closeGuide() {
+  guideOpen = false;
+  document.getElementById('guide-overlay').classList.remove('open');
+}
+
 function startGame() {
   document.getElementById('title-screen').style.display = 'none';
+  document.getElementById('guide-btn').classList.add('visible');
   loadXP();
   started = true;
   // Start passive XP earning (every 30 seconds)
