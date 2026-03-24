@@ -8,7 +8,7 @@
   @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { background: #0a0a1a; display: flex; justify-content: center; align-items: center; min-height: 100vh; overflow: hidden; }
-  canvas { image-rendering: pixelated; image-rendering: crisp-edges; cursor: default; }
+  canvas { image-rendering: pixelated; image-rendering: crisp-edges; cursor: default; max-width: 100vw; max-height: 100vh; }
   #ui {
     position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
     width: 640px; display: none; z-index: 10;
@@ -376,8 +376,8 @@ const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
 const TILE = 16;
 const SCALE = 3;
-const COLS = 22;
-const ROWS = 16;
+const COLS = 30;
+const ROWS = 22;
 canvas.width = COLS * TILE * SCALE;
 canvas.height = ROWS * TILE * SCALE;
 document.getElementById('ui').style.width = canvas.width + 'px';
@@ -393,27 +393,34 @@ const C = {
   stone: '#666677', stoneDark: '#444455',
 };
 
-// ── MAP (0=grass, 1=path, 2=wall, 3=roof, 4=water, 5=tree, 6=stone, 7=door, 8=flower) ──
+// ── MAP (0=grass, 1=path, 2=wall, 3=roof, 4=water, 5=tree, 6=stone, 7=door, 8=flower, 9=board, 10=plaza, 13=fountain) ──
+// 30 columns x 22 rows — expanded city layout
 const MAP = [
-  [5,5,5,5,5,5,5,4,4,4,4,4,4,4,5,5,5,5,5,5,5,5],
-  [5,5,5,3,3,3,5,4,4,4,4,4,4,4,5,3,3,3,3,5,5,5],
-  [5,5,5,2,2,2,5,0,0,1,1,1,0,0,5,2,2,2,2,5,5,5],
-  [5,0,0,2,7,2,0,0,0,1,8,1,0,0,0,2,7,2,2,0,0,5],
-  [5,0,0,0,1,0,0,0,0,1,0,1,0,0,0,0,1,0,0,0,0,5],
-  [5,0,8,0,1,0,0,8,0,1,0,1,0,8,0,0,1,0,8,0,0,5],
-  [5,0,0,0,1,1,1,1,1,1,0,1,1,1,1,1,1,0,0,0,0,5],
-  [5,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,5],
-  [5,0,6,0,0,0,0,0,0,6,9,6,0,0,0,0,0,0,6,0,0,5],
-  [5,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,5],
-  [5,0,0,0,1,1,1,1,1,1,0,1,1,1,1,1,1,0,0,0,0,5],
-  [5,0,8,0,1,0,0,8,0,1,0,1,0,8,0,0,1,0,8,0,0,5],
-  [5,0,0,0,1,0,0,0,0,1,0,1,0,0,0,0,1,0,0,0,0,5],
-  [5,0,0,2,7,2,0,0,0,1,8,1,0,0,0,2,7,2,2,0,0,5],
-  [5,5,5,2,2,2,5,0,0,1,1,1,0,0,5,2,2,2,2,5,5,5],
-  [5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5],
+  [5,5,5,5,5,5,5,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,5,5,5,5,5,5,5],
+  [5,5,3,3,3,3,3,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,3,3,3,3,3,5,5],
+  [5,5,2,2,2,2,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2,2,2,2,2,5,5],
+  [5,0,2,2,2,7,2,0,8,0,0,0,0,0,0,1,0,0,0,0,0,0,8,2,7,2,2,2,0,5],
+  [5,0,0,0,0,1,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,1,0,0,0,0,5],
+  [5,0,8,0,0,1,0,0,0,0,8,0,0,0,0,1,0,0,0,0,8,0,0,0,1,0,0,8,0,5],
+  [5,0,0,0,0,1,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,1,0,0,0,0,5],
+  [5,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,5],
+  [5,0,6,0,0,0,0,0,0,0,0,10,10,10,10,10,10,10,10,10,0,0,0,0,0,0,0,6,0,5],
+  [5,0,0,0,0,1,0,0,0,0,0,10,10,13,10,10,10,13,10,10,0,0,0,0,0,1,0,0,0,5],
+  [5,0,0,0,0,1,0,0,0,0,0,10,10,10,10,9,10,10,10,10,0,0,0,0,0,1,0,0,0,5],
+  [5,0,0,0,0,1,0,0,0,0,0,10,10,13,10,10,10,13,10,10,0,0,0,0,0,1,0,0,0,5],
+  [5,0,6,0,0,0,0,0,0,0,0,10,10,10,10,10,10,10,10,10,0,0,0,0,0,0,0,6,0,5],
+  [5,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,5],
+  [5,0,0,0,0,1,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,1,0,0,0,0,5],
+  [5,0,8,0,0,1,0,0,0,0,8,0,0,0,0,1,0,0,0,0,8,0,0,0,1,0,0,8,0,5],
+  [5,0,0,0,0,1,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,1,0,0,0,0,5],
+  [5,0,2,2,2,7,2,0,8,0,0,0,0,0,0,1,0,0,0,0,0,0,8,2,7,2,2,2,0,5],
+  [5,5,2,2,2,2,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2,2,2,2,2,5,5],
+  [5,5,3,3,3,3,3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3,3,3,3,3,5,5],
+  [5,5,5,5,5,5,5,5,0,0,0,0,0,0,0,0,0,0,0,0,0,0,5,5,5,5,5,5,5,5],
+  [5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5],
 ];
 
-const SOLID = new Set([2, 3, 4, 5, 6, 9]);
+const SOLID = new Set([2, 3, 4, 5, 6, 9, 13]);
 
 // ── DRAW TILE ──
 function drawTile(x, y, type) {
@@ -424,19 +431,38 @@ function drawTile(x, y, type) {
   ctx.fillRect(px, py, TILE, TILE);
 
   switch(type) {
-    case 1: // path
+    case 1: // cobblestone path
       ctx.fillStyle = C.path;
       ctx.fillRect(px, py, TILE, TILE);
       ctx.fillStyle = C.pathDark;
-      ctx.fillRect(px+2, py+6, 2, 2);
-      ctx.fillRect(px+10, py+12, 2, 2);
+      ctx.fillRect(px+1, py+1, 3, 3);
+      ctx.fillRect(px+5, py+0, 4, 3);
+      ctx.fillRect(px+10, py+1, 4, 3);
+      ctx.fillRect(px+0, py+5, 4, 3);
+      ctx.fillRect(px+5, py+5, 4, 4);
+      ctx.fillRect(px+10, py+6, 4, 3);
+      ctx.fillRect(px+2, py+10, 4, 3);
+      ctx.fillRect(px+7, py+10, 3, 3);
+      ctx.fillRect(px+11, py+11, 4, 3);
+      // Subtle highlight
+      ctx.fillStyle = '#9a8365';
+      ctx.fillRect(px+6, py+2, 2, 1);
+      ctx.fillRect(px+2, py+7, 1, 2);
+      ctx.fillRect(px+12, py+8, 1, 1);
       break;
-    case 2: // wall
+    case 2: // wall with brick pattern
       ctx.fillStyle = C.wall;
       ctx.fillRect(px, py, TILE, TILE);
+      // Brick lines
       ctx.fillStyle = C.wallDark;
-      ctx.fillRect(px, py, TILE, 2);
-      // window — glows warm at night, cool blue by day
+      for (let by = 0; by < TILE; by += 4) {
+        ctx.fillRect(px, py + by, TILE, 1);
+        const off = (Math.floor(by / 4) % 2) * 5;
+        for (let bx = off; bx < TILE; bx += 8) {
+          ctx.fillRect(px + bx, py + by, 1, 4);
+        }
+      }
+      // Window — glows warm at night
       const nightAlpha = getDayNightAlpha();
       ctx.fillStyle = nightAlpha > 0.1 ? '#ffee88' : C.windowLit;
       ctx.fillRect(px+5, py+5, 6, 5);
@@ -448,83 +474,207 @@ function drawTile(x, y, type) {
       ctx.fillRect(px+7, py+5, 2, 5);
       ctx.fillRect(px+5, py+7, 6, 1);
       break;
-    case 3: // roof
+    case 3: // roof with shingle pattern
       ctx.fillStyle = C.roof;
       ctx.fillRect(px, py, TILE, TILE);
       ctx.fillStyle = C.roofDark;
-      for (let i = 0; i < TILE; i += 4) {
-        ctx.fillRect(px + ((y * 2 + i) % 4), py + i, 2, 2);
+      for (let ry = 0; ry < TILE; ry += 3) {
+        const off = (Math.floor(ry / 3) % 2) * 4;
+        for (let rx = off; rx < TILE; rx += 7) {
+          ctx.fillRect(px + rx, py + ry, 4, 1);
+        }
+      }
+      // Ridge highlight
+      ctx.fillStyle = '#aa4444';
+      ctx.fillRect(px, py, TILE, 1);
+      // Chimney on some tiles
+      if (x % 5 === 0 && y < ROWS / 2) {
+        ctx.fillStyle = '#665544';
+        ctx.fillRect(px+11, py-3, 3, 5);
+        ctx.fillStyle = '#554433';
+        ctx.fillRect(px+11, py-3, 3, 1);
       }
       break;
-    case 4: // water / sky (reflects time of day)
+    case 4: // water / sky with animated waves
       ctx.fillStyle = getSkyColor();
       ctx.fillRect(px, py, TILE, TILE);
-      const waterHighlight = isNightTime() ? 'rgba(100,100,200,0.15)' : 'rgba(100,160,255,0.2)';
-      ctx.fillStyle = waterHighlight;
-      const wt = (Date.now() / 400 + x + y) % 3;
-      if (wt < 1) { ctx.fillRect(px+3, py+4, 5, 1); ctx.fillRect(px+9, py+10, 4, 1); }
+      const waterT = Date.now() / 500;
+      const waterHL = isNightTime() ? 'rgba(80,80,180,0.12)' : 'rgba(120,180,255,0.18)';
+      ctx.fillStyle = waterHL;
+      for (let wy = 2; wy < TILE; wy += 5) {
+        const wx = Math.sin(waterT + x * 0.5 + wy * 0.3) * 3;
+        ctx.fillRect(px + 2 + wx, py + wy, 5, 1);
+        ctx.fillRect(px + 8 + Math.sin(waterT * 0.7 + x + wy) * 2, py + wy + 2, 4, 1);
+      }
+      // Stars reflection at night
+      if (isNightTime() && (x * 7 + y * 13) % 11 < 3) {
+        const twk = 0.1 + Math.sin(Date.now() / 400 + x * 3 + y * 5) * 0.1;
+        ctx.fillStyle = `rgba(180, 200, 255, ${twk})`;
+        ctx.fillRect(px + (x * 3) % 12 + 2, py + (y * 5) % 10 + 2, 1, 1);
+      }
       break;
-    case 5: // tree
+    case 5: // tree with detail
       ctx.fillStyle = C.trunk;
       ctx.fillRect(px+6, py+10, 4, 6);
+      ctx.fillStyle = '#4a2a10';
+      ctx.fillRect(px+7, py+11, 2, 5);
+      // Canopy shadow
       ctx.fillStyle = C.treeDark;
-      ctx.fillRect(px+2, py+2, 12, 10);
+      ctx.fillRect(px+1, py+3, 14, 9);
+      // Canopy layers
       ctx.fillStyle = C.tree;
-      ctx.fillRect(px+3, py+1, 10, 10);
-      ctx.fillRect(px+1, py+4, 14, 5);
+      ctx.fillRect(px+2, py+1, 12, 10);
+      ctx.fillRect(px+0, py+4, 16, 5);
+      // Highlight spots
+      ctx.fillStyle = '#2a5a1a';
+      ctx.fillRect(px+4, py+2, 4, 3);
+      ctx.fillRect(px+9, py+3, 3, 2);
+      ctx.fillStyle = '#3a7a2a';
+      ctx.fillRect(px+3, py+5, 2, 2);
+      ctx.fillRect(px+10, py+6, 3, 1);
       break;
-    case 6: // stone
+    case 6: // decorative stone with moss
       ctx.fillStyle = C.stone;
       ctx.fillRect(px+2, py+4, 12, 8);
       ctx.fillStyle = C.stoneDark;
       ctx.fillRect(px+2, py+4, 12, 2);
+      ctx.fillRect(px+6, py+4, 2, 8);
+      // Moss
+      ctx.fillStyle = '#3a5a2a';
+      ctx.fillRect(px+3, py+10, 3, 2);
+      ctx.fillRect(px+10, py+9, 2, 2);
       break;
-    case 7: // door
+    case 7: // door with lantern
       ctx.fillStyle = C.wall;
       ctx.fillRect(px, py, TILE, TILE);
+      // Brick hint
+      ctx.fillStyle = C.wallDark;
+      ctx.fillRect(px, py, TILE, 1);
+      ctx.fillRect(px, py+4, TILE, 1);
+      // Door frame
+      ctx.fillStyle = '#332211';
+      ctx.fillRect(px+3, py+2, 10, 14);
       ctx.fillStyle = C.door;
       ctx.fillRect(px+4, py+3, 8, 13);
+      // Door panels
+      ctx.fillStyle = '#3a2816';
+      ctx.fillRect(px+5, py+4, 6, 1);
+      ctx.fillRect(px+5, py+9, 6, 1);
+      // Handle
       ctx.fillStyle = C.windowLit;
       ctx.fillRect(px+10, py+8, 2, 2);
+      // Lantern above door
+      ctx.fillStyle = '#554422';
+      ctx.fillRect(px+12, py+1, 2, 2);
+      const lanternGlow = getDayNightAlpha();
+      if (lanternGlow > 0.05) {
+        ctx.fillStyle = `rgba(255, 220, 100, ${0.3 + lanternGlow * 0.5})`;
+        ctx.fillRect(px+11, py+0, 4, 4);
+        ctx.fillStyle = `rgba(255, 220, 100, ${lanternGlow * 0.15})`;
+        ctx.fillRect(px+9, py-2, 8, 8);
+      }
       break;
-    case 8: // flower
+    case 8: // flower garden
       const fc = [C.flower1, C.flower2, C.flower3][(x*3+y*7)%3];
-      ctx.fillStyle = fc;
-      ctx.fillRect(px+6, py+5, 4, 4);
+      const fc2 = [C.flower2, C.flower3, C.flower1][(x*5+y*3)%3];
+      // Multiple flowers
       ctx.fillStyle = C.tree;
-      ctx.fillRect(px+7, py+9, 2, 4);
+      ctx.fillRect(px+4, py+8, 2, 4);
+      ctx.fillRect(px+9, py+7, 2, 5);
+      ctx.fillRect(px+13, py+9, 1, 3);
+      ctx.fillStyle = fc;
+      ctx.fillRect(px+3, py+5, 4, 4);
+      ctx.fillStyle = fc2;
+      ctx.fillRect(px+8, py+4, 4, 4);
+      // Small ground flowers
+      ctx.fillStyle = fc;
+      ctx.fillRect(px+12, py+7, 2, 2);
+      ctx.fillRect(px+1, py+10, 2, 2);
       break;
     case 9: // mission board
-      // Wooden post
+      // Stone base
+      ctx.fillStyle = '#7a7a8a';
+      ctx.fillRect(px, py, TILE, TILE);
+      ctx.fillStyle = '#6a6a7a';
+      ctx.fillRect(px, py, TILE, 1);
+      ctx.fillRect(px, py, 1, TILE);
+      // Wooden posts
       ctx.fillStyle = '#5a3a1a';
-      ctx.fillRect(px+6, py+8, 4, 8);
+      ctx.fillRect(px+3, py+6, 2, 10);
+      ctx.fillRect(px+11, py+6, 2, 10);
       // Board
       ctx.fillStyle = '#8b6914';
-      ctx.fillRect(px+1, py+1, 14, 9);
+      ctx.fillRect(px+1, py+0, 14, 8);
       ctx.fillStyle = '#a67c20';
-      ctx.fillRect(px+2, py+2, 12, 7);
-      // Border nails
+      ctx.fillRect(px+2, py+1, 12, 6);
+      // Nails
       ctx.fillStyle = '#ccc';
-      ctx.fillRect(px+2, py+2, 1, 1);
-      ctx.fillRect(px+13, py+2, 1, 1);
-      ctx.fillRect(px+2, py+8, 1, 1);
-      ctx.fillRect(px+13, py+8, 1, 1);
-      // Paper notes pinned on board
+      ctx.fillRect(px+2, py+1, 1, 1);
+      ctx.fillRect(px+13, py+1, 1, 1);
+      // Paper notes
       ctx.fillStyle = '#ffe8c0';
-      ctx.fillRect(px+3, py+3, 4, 5);
+      ctx.fillRect(px+3, py+2, 4, 4);
       ctx.fillStyle = '#e8d8b0';
-      ctx.fillRect(px+8, py+3, 5, 3);
+      ctx.fillRect(px+8, py+2, 5, 3);
       ctx.fillStyle = '#d4eedd';
-      ctx.fillRect(px+8, py+7, 5, 1);
+      ctx.fillRect(px+8, py+5, 5, 1);
       // Pin dots
       ctx.fillStyle = '#ff4444';
-      ctx.fillRect(px+4, py+3, 1, 1);
+      ctx.fillRect(px+4, py+2, 1, 1);
       ctx.fillStyle = '#4444ff';
-      ctx.fillRect(px+10, py+3, 1, 1);
-      // Pulsing glow effect
-      const glowAlpha = 0.15 + Math.sin(Date.now() / 500) * 0.1;
+      ctx.fillRect(px+10, py+2, 1, 1);
+      // Pulsing glow
+      const glowAlpha = 0.12 + Math.sin(Date.now() / 500) * 0.08;
       ctx.fillStyle = `rgba(255, 230, 109, ${glowAlpha})`;
-      ctx.fillRect(px-1, py-1, 18, 12);
+      ctx.fillRect(px-1, py-1, 18, 10);
+      break;
+    case 10: // plaza stone tiles
+      ctx.fillStyle = (x + y) % 2 === 0 ? '#787888' : '#6e6e80';
+      ctx.fillRect(px, py, TILE, TILE);
+      // Tile grid lines
+      ctx.fillStyle = '#5e5e70';
+      ctx.fillRect(px, py, TILE, 1);
+      ctx.fillRect(px, py, 1, TILE);
+      // Subtle weathering
+      if ((x * 7 + y * 3) % 5 === 0) {
+        ctx.fillStyle = '#72728a';
+        ctx.fillRect(px+4, py+4, 3, 3);
+      }
+      if ((x * 3 + y * 11) % 7 === 0) {
+        ctx.fillStyle = '#626278';
+        ctx.fillRect(px+8, py+9, 4, 2);
+      }
+      break;
+    case 13: // fountain
+      // Plaza base
+      ctx.fillStyle = '#787888';
+      ctx.fillRect(px, py, TILE, TILE);
+      ctx.fillStyle = '#5e5e70';
+      ctx.fillRect(px, py, TILE, 1);
+      ctx.fillRect(px, py, 1, TILE);
+      // Stone basin
+      ctx.fillStyle = '#999aaa';
+      ctx.fillRect(px+1, py+3, 14, 11);
+      ctx.fillStyle = '#777888';
+      ctx.fillRect(px+1, py+3, 14, 2);
+      // Water
+      ctx.fillStyle = '#2255cc';
+      ctx.fillRect(px+2, py+5, 12, 8);
+      // Animated shimmer
+      const ft = Date.now() / 300;
+      ctx.fillStyle = `rgba(100, 180, 255, ${0.3 + Math.sin(ft + x) * 0.2})`;
+      ctx.fillRect(px + 3 + Math.sin(ft) * 2, py + 6, 3, 2);
+      ctx.fillRect(px + 8 + Math.cos(ft * 0.7) * 2, py + 8, 3, 2);
+      // Center spout
+      ctx.fillStyle = '#aabbcc';
+      ctx.fillRect(px+7, py+1, 2, 6);
+      // Water spray
+      const dropY1 = py + 1 + ((Date.now() / 150) % 4);
+      const dropY2 = py + 2 + ((Date.now() / 180 + 2) % 3);
+      ctx.fillStyle = 'rgba(150, 200, 255, 0.6)';
+      ctx.fillRect(px+5, dropY1, 1, 1);
+      ctx.fillRect(px+10, dropY2, 1, 1);
+      ctx.fillRect(px+7, py - 1 + Math.sin(ft * 2) * 1, 2, 1);
       break;
   }
 }
@@ -556,16 +706,16 @@ const TIER_EFFECTS = {
   cosmic:   { aura: 'rgba(255, 107, 157, 0.3)', particleColor: '#ff6b9d', glowSize: 8 },
 };
 
-// Born agent workstations (new buildings)
+// Born agent workstations (placed near parent founders)
 const BORN_WORKSTATIONS = {
-  oracle: { x: 7, y: 5 },
-  quant:  { x: 13, y: 5 },
-  sage:   { x: 7, y: 11 },
-  forge:  { x: 13, y: 11 },
-  scout:  { x: 2, y: 7 },
-  weaver: { x: 19, y: 7 },
-  pixel:  { x: 10, y: 3 },
-  cipher: { x: 10, y: 13 },
+  oracle: { x: 8, y: 5 },    // near Robin (NW)
+  cipher: { x: 8, y: 6 },    // near Robin (NW)
+  quant:  { x: 8, y: 14 },   // near Sherlock (SW)
+  scout:  { x: 3, y: 10 },   // center-left
+  sage:   { x: 22, y: 5 },   // near Jarvis (NE)
+  weaver: { x: 22, y: 6 },   // near Jarvis (NE)
+  forge:  { x: 22, y: 14 },  // near Stark (SE)
+  pixel:  { x: 27, y: 10 },  // center-right
 };
 
 const BORN_AGENT_CLASS = {
@@ -1006,16 +1156,16 @@ const AGENT_CLASS = {
 
 // ── AGENTS ──
 const agents = [
-  { name: 'robin', x: 10, y: 7, dir: 0, tx: 10, ty: 7, walking: false, speed: 0.008, bubble: null, bubbleStart: 0, idleTimer: 0, home: {x:4,y:4},
+  { name: 'robin', x: 5, y: 5, dir: 0, tx: 5, ty: 5, walking: false, speed: 0.008, bubble: null, bubbleStart: 0, idleTimer: 0, home: {x:5,y:4},
     xp: 1200, activity: 'idle', activityTimer: 0, lastScheduleCheck: 0, path: [], pathIdx: 0, tier: 'spark', generation: 0,
   },
-  { name: 'sherlock', x: 4, y: 9, dir: 0, tx: 4, ty: 9, walking: false, speed: 0.006, bubble: null, bubbleStart: 0, idleTimer: 0, home: {x:4,y:13},
+  { name: 'sherlock', x: 5, y: 15, dir: 0, tx: 5, ty: 15, walking: false, speed: 0.006, bubble: null, bubbleStart: 0, idleTimer: 0, home: {x:5,y:17},
     xp: 800, activity: 'idle', activityTimer: 0, lastScheduleCheck: 0, path: [], pathIdx: 0, tier: 'spark', generation: 0,
   },
-  { name: 'jarvis', x: 17, y: 4, dir: 0, tx: 17, ty: 4, walking: false, speed: 0.005, bubble: null, bubbleStart: 0, idleTimer: 0, home: {x:16,y:4},
+  { name: 'jarvis', x: 24, y: 5, dir: 0, tx: 24, ty: 5, walking: false, speed: 0.005, bubble: null, bubbleStart: 0, idleTimer: 0, home: {x:24,y:4},
     xp: 900, activity: 'idle', activityTimer: 0, lastScheduleCheck: 0, path: [], pathIdx: 0, tier: 'spark', generation: 0,
   },
-  { name: 'stark', x: 17, y: 12, dir: 0, tx: 17, ty: 12, walking: false, speed: 0.009, bubble: null, bubbleStart: 0, idleTimer: 0, home: {x:16,y:13},
+  { name: 'stark', x: 24, y: 15, dir: 0, tx: 24, ty: 15, walking: false, speed: 0.009, bubble: null, bubbleStart: 0, idleTimer: 0, home: {x:24,y:17},
     xp: 1500, activity: 'idle', activityTimer: 0, lastScheduleCheck: 0, path: [], pathIdx: 0, tier: 'spark', generation: 0,
   },
 ];
@@ -1398,7 +1548,7 @@ function updateAgents(dt) {
 }
 
 // ── MISSION BOARD ──
-const BOARD_POS = { x: 10, y: 8 }; // map tile position
+const BOARD_POS = { x: 15, y: 10 }; // map tile position (center plaza)
 let missionBoardOpen = false;
 
 const MISSIONS = [
@@ -1616,14 +1766,15 @@ const AGENT_MISSIONS_DONE = {
 
 // ── 24-HOUR LIFE SYSTEM ──
 const WORKSTATIONS = {
-  robin: { x: 4, y: 4 },
-  sherlock: { x: 4, y: 12 },
-  jarvis: { x: 16, y: 4 },
-  stark: { x: 16, y: 12 },
+  robin: { x: 5, y: 4 },
+  sherlock: { x: 5, y: 16 },
+  jarvis: { x: 24, y: 4 },
+  stark: { x: 24, y: 16 },
 };
 const HANGOUT_SPOTS = [
-  { x: 10, y: 7 }, { x: 10, y: 9 }, { x: 8, y: 8 }, { x: 12, y: 8 },
-  { x: 6, y: 7 }, { x: 14, y: 7 }, { x: 6, y: 9 }, { x: 14, y: 9 },
+  { x: 13, y: 8 }, { x: 17, y: 8 }, { x: 13, y: 12 }, { x: 17, y: 12 },
+  { x: 9, y: 8 }, { x: 21, y: 8 }, { x: 9, y: 12 }, { x: 21, y: 12 },
+  { x: 10, y: 10 }, { x: 20, y: 10 }, { x: 15, y: 8 }, { x: 15, y: 12 },
 ];
 
 const WORK_BUBBLES = {
@@ -1750,7 +1901,7 @@ function getActivityTarget(agent, activity) {
       return WORKSTATIONS[agent.name] || BORN_WORKSTATIONS[agent.name];
     case 'meeting': {
       // Gather around mission board — these tiles are walkable (grass)
-      const meetSpots = [{x:8,y:7},{x:11,y:7},{x:8,y:9},{x:11,y:9}];
+      const meetSpots = [{x:13,y:10},{x:17,y:10},{x:14,y:9},{x:16,y:11}];
       return meetSpots[agents.indexOf(agent) % meetSpots.length];
     }
     case 'break': {
@@ -1851,8 +2002,8 @@ function drawParticles() {
 }
 
 // Stars for night sky
-const stars = Array.from({ length: 50 }, () => ({
-  x: Math.random() * COLS * TILE, y: Math.random() * 2.5 * TILE,
+const stars = Array.from({ length: 80 }, () => ({
+  x: Math.random() * COLS * TILE, y: Math.random() * 2 * TILE,
   twinkleSpeed: 300 + Math.random() * 700, phase: Math.random() * 1000,
 }));
 
@@ -2046,14 +2197,14 @@ function gameLoop(time) {
   // Building labels
   ctx.fillStyle = '#fff';
   ctx.font = '4px monospace';
-  ctx.fillText('ROBIN', 3*TILE+1, 1*TILE+6);
-  ctx.fillText('HQ', 3*TILE+5, 1*TILE+12);
-  ctx.fillText('SHERLOCK', 3*TILE-2, 14*TILE+6);
-  ctx.fillText('LAB', 3*TILE+4, 14*TILE+12);
-  ctx.fillText('JARVIS', 15*TILE+2, 1*TILE+6);
-  ctx.fillText('ARCHIVE', 15*TILE, 1*TILE+12);
-  ctx.fillText('STARK', 15*TILE+2, 14*TILE+6);
-  ctx.fillText('WORKSHOP', 15*TILE-2, 14*TILE+12);
+  ctx.fillText('ROBIN', 3*TILE, 1*TILE+6);
+  ctx.fillText('HQ', 3*TILE+4, 1*TILE+12);
+  ctx.fillText('JARVIS', 24*TILE, 1*TILE+6);
+  ctx.fillText('ARCHIVE', 23*TILE+6, 1*TILE+12);
+  ctx.fillText('SHERLOCK', 2*TILE+6, 19*TILE+6);
+  ctx.fillText('LAB', 3*TILE+6, 19*TILE+12);
+  ctx.fillText('STARK', 24*TILE+2, 19*TILE+6);
+  ctx.fillText('WORKSHOP', 23*TILE+4, 19*TILE+12);
 
   // ── PARTY HUD (top-right) ──
   const hudX = COLS * TILE - 60;
