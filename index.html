@@ -531,11 +531,108 @@ function drawTile(x, y, type) {
 
 // ── SPRITE DRAWING ──
 const AGENT_COLORS = {
+  // Founders
   robin:    { body: '#ff6b9d', hair: '#cc3366', skin: '#ffccaa', accent: '#ff9dbd' },
   sherlock: { body: '#4ecdc4', hair: '#2a7a72', skin: '#ffe0c0', accent: '#7eeee6' },
   jarvis:   { body: '#ffe66d', hair: '#cc9900', skin: '#d4e4ff', accent: '#fff4aa' },
   stark:    { body: '#ff6b35', hair: '#442200', skin: '#ffccaa', accent: '#ff9d6b' },
+  // Born agents
+  oracle:   { body: '#a855f7', hair: '#6b21a8', skin: '#f0e0ff', accent: '#c084fc' },
+  quant:    { body: '#06b6d4', hair: '#155e75', skin: '#e0f2fe', accent: '#67e8f9' },
+  sage:     { body: '#10b981', hair: '#065f46', skin: '#d1fae5', accent: '#6ee7b7' },
+  forge:    { body: '#ef4444', hair: '#7f1d1d', skin: '#fef2f2', accent: '#fca5a5' },
+  scout:    { body: '#0ea5e9', hair: '#0c4a6e', skin: '#e0f2fe', accent: '#7dd3fc' },
+  weaver:   { body: '#8b5cf6', hair: '#4c1d95', skin: '#ede9fe', accent: '#a78bfa' },
+  pixel:    { body: '#f97316', hair: '#7c2d12', skin: '#fff7ed', accent: '#fdba74' },
+  cipher:   { body: '#14b8a6', hair: '#134e4a', skin: '#ccfbf1', accent: '#5eead4' },
 };
+
+// Evolution tier visual effects
+const TIER_EFFECTS = {
+  spark:    { aura: null, particleColor: null, glowSize: 0 },
+  electric: { aura: 'rgba(255, 230, 100, 0.15)', particleColor: '#ffe66d', glowSize: 2 },
+  neural:   { aura: 'rgba(100, 200, 255, 0.2)', particleColor: '#64c8ff', glowSize: 4 },
+  quantum:  { aura: 'rgba(168, 85, 247, 0.25)', particleColor: '#a855f7', glowSize: 6 },
+  cosmic:   { aura: 'rgba(255, 107, 157, 0.3)', particleColor: '#ff6b9d', glowSize: 8 },
+};
+
+// Born agent workstations (new buildings)
+const BORN_WORKSTATIONS = {
+  oracle: { x: 7, y: 5 },
+  quant:  { x: 13, y: 5 },
+  sage:   { x: 7, y: 11 },
+  forge:  { x: 13, y: 11 },
+  scout:  { x: 2, y: 7 },
+  weaver: { x: 19, y: 7 },
+  pixel:  { x: 10, y: 3 },
+  cipher: { x: 10, y: 13 },
+};
+
+const BORN_AGENT_CLASS = {
+  oracle: 'Seer — Prediction',
+  quant:  'Algorithmist — Trading',
+  sage:   'Scholar — Research',
+  forge:  'Smith — Infrastructure',
+  scout:  'Ranger — Scanning',
+  weaver: 'Weaver — Synthesis',
+  pixel:  'Artisan — Design',
+  cipher: 'Cryptographer — Security',
+};
+
+// Birth registry — which agents can be born from which founder
+const BIRTH_REGISTRY = {
+  robin: [
+    { name: 'oracle', specialty: 'AI prediction & forecasting', birthLevel: 5 },
+    { name: 'cipher', specialty: 'Security & cryptography', birthLevel: 10 },
+  ],
+  sherlock: [
+    { name: 'quant', specialty: 'Algorithmic trading & backtesting', birthLevel: 5 },
+    { name: 'scout', specialty: 'Real-time market scanning & alerts', birthLevel: 10 },
+  ],
+  jarvis: [
+    { name: 'sage', specialty: 'Deep research & academic papers', birthLevel: 5 },
+    { name: 'weaver', specialty: 'Cross-domain knowledge synthesis', birthLevel: 10 },
+  ],
+  stark: [
+    { name: 'forge', specialty: 'Infrastructure & DevOps automation', birthLevel: 5 },
+    { name: 'pixel', specialty: 'UI/UX design & frontend craft', birthLevel: 10 },
+  ],
+};
+
+const FOUNDER_NAMES = ['robin', 'sherlock', 'jarvis', 'stark'];
+
+// Evolution tier from level
+function getTierForLevel(lv) {
+  if (lv >= 20) return 'cosmic';
+  if (lv >= 15) return 'quantum';
+  if (lv >= 10) return 'neural';
+  if (lv >= 5) return 'electric';
+  return 'spark';
+}
+
+// Civilization era from population
+function getEraForPopulation(count) {
+  if (count >= 16) return 'nation';
+  if (count >= 10) return 'metropolis';
+  if (count >= 7) return 'city';
+  if (count >= 5) return 'town';
+  return 'village';
+}
+
+let currentEra = 'village';
+let totalBirths = 0;
+
+// Birth animation effects
+const birthEffects = [];
+function triggerBirthEffect(parentX, parentY, childName) {
+  birthEffects.push({ x: parentX, y: parentY, name: childName, born: Date.now(), duration: 4000 });
+}
+
+// Evolution flash effects
+const evolutionEffects = [];
+function triggerEvolutionEffect(agentX, agentY, agentName, newTier) {
+  evolutionEffects.push({ x: agentX, y: agentY, name: agentName, tier: newTier, born: Date.now(), duration: 2500 });
+}
 
 function drawSprite(agent, frame) {
   const c = AGENT_COLORS[agent.name];
@@ -568,6 +665,31 @@ function drawSprite(agent, frame) {
     ctx.font = '4px monospace';
     ctx.fillText('Z', px + 10, py + 5 + zy * 0.5);
     return; // Skip normal rendering
+  }
+
+  // Evolution aura (drawn behind sprite)
+  const tier = agent.tier || 'spark';
+  const tierFx = TIER_EFFECTS[tier];
+  if (tierFx.aura) {
+    const gs = tierFx.glowSize;
+    const pulse = Math.sin(Date.now() / 600 + agents.indexOf(agent) * 1.5) * 1.5;
+    ctx.fillStyle = tierFx.aura;
+    ctx.fillRect(px - gs - pulse, py - gs - pulse, TILE + (gs + pulse) * 2, TILE + (gs + pulse) * 2);
+    // Orbiting tier particles
+    if (tierFx.particleColor) {
+      const pt = Date.now() / 400;
+      const numP = Math.min(gs, 6);
+      for (let p = 0; p < numP; p++) {
+        const angle = pt * 0.8 + p * (Math.PI * 2 / numP);
+        const radius = 9 + Math.sin(pt * 0.4 + p) * 2;
+        const ppx = px + 8 + Math.cos(angle) * radius;
+        const ppy = py + 8 + Math.sin(angle) * radius;
+        ctx.globalAlpha = 0.4 + Math.sin(pt * 2 + p * 1.3) * 0.3;
+        ctx.fillStyle = tierFx.particleColor;
+        ctx.fillRect(ppx, ppy, 1.5, 1.5);
+      }
+      ctx.globalAlpha = 1;
+    }
   }
 
   const bob = agent.walking ? (frame % 2 === 0 ? -1 : 0) : 0;
@@ -724,19 +846,67 @@ const XP_KEY = 'robin-family-xp';
 function loadXP() {
   try {
     const saved = JSON.parse(localStorage.getItem(XP_KEY));
-    if (saved) {
+    if (!saved) return;
+
+    if (saved.version === 2) {
+      // New format — full state with born agents
+      currentEra = saved.era || 'village';
+      totalBirths = saved.totalBirths || 0;
+      for (const sa of saved.agents) {
+        let agent = agents.find(a => a.name === sa.name);
+        if (!agent && sa.bornFrom) {
+          // Recreate born agent from save
+          const ws = BORN_WORKSTATIONS[sa.name];
+          agent = {
+            name: sa.name,
+            x: ws ? ws.x : 10, y: ws ? ws.y : 7,
+            dir: 0, tx: ws ? ws.x : 10, ty: ws ? ws.y : 7,
+            walking: false, speed: 0.007,
+            bubble: null, bubbleStart: 0, idleTimer: 0,
+            home: ws || { x: 10, y: 7 },
+            xp: 0, activity: 'idle', activityTimer: 0, lastScheduleCheck: 0,
+            path: [], pathIdx: 0,
+            tier: 'spark', generation: sa.generation || 1,
+            bornFrom: sa.bornFrom, specialty: sa.specialty,
+          };
+          agents.push(agent);
+        }
+        if (agent) {
+          if (sa.xp > agent.xp) agent.xp = sa.xp;
+          agent.tier = sa.tier || getTierForLevel(getLevelFromXP(agent.xp));
+          agent.generation = sa.generation || 0;
+          if (sa.bornFrom) agent.bornFrom = sa.bornFrom;
+          if (sa.specialty) agent.specialty = sa.specialty;
+        }
+      }
+    } else {
+      // Legacy format — { name: xp }
       for (const agent of agents) {
         if (saved[agent.name] !== undefined && saved[agent.name] > agent.xp) {
-          agent.xp = saved[agent.name]; // only load if higher (never lose XP)
+          agent.xp = saved[agent.name];
         }
       }
     }
+    // Sync tiers from XP
+    for (const agent of agents) {
+      agent.tier = getTierForLevel(getLevelFromXP(agent.xp));
+    }
+    currentEra = getEraForPopulation(agents.length);
   } catch {}
 }
 
 function saveXP() {
-  const data = {};
-  for (const agent of agents) data[agent.name] = agent.xp;
+  const data = {
+    version: 2,
+    era: currentEra,
+    totalBirths: totalBirths,
+    agents: agents.map(a => ({
+      name: a.name, xp: a.xp, tier: a.tier || 'spark',
+      generation: a.generation || 0,
+      bornFrom: a.bornFrom || null,
+      specialty: a.specialty || null,
+    })),
+  };
   localStorage.setItem(XP_KEY, JSON.stringify(data));
 }
 
@@ -745,12 +915,85 @@ function tickXP() {
   for (const agent of agents) {
     switch (agent.activity) {
       case 'working': agent.xp += 2; break;
+      case 'studying': agent.xp += 2; break;
       case 'meeting': agent.xp += 3; break;
       case 'visiting': agent.xp += 1; break;
       case 'break': agent.xp += 1; break;
     }
   }
+  checkEvolution();
+  checkBirths();
   saveXP();
+}
+
+function checkEvolution() {
+  for (const agent of agents) {
+    const lv = getLevelFromXP(agent.xp);
+    const newTier = getTierForLevel(lv);
+    if (newTier !== (agent.tier || 'spark')) {
+      const oldTier = agent.tier || 'spark';
+      agent.tier = newTier;
+      triggerEvolutionEffect(agent.x, agent.y, agent.name, newTier);
+      agent.bubble = 'EVOLVED: ' + oldTier + ' → ' + newTier + '!';
+      agent.bubbleStart = Date.now();
+    }
+  }
+  const newEra = getEraForPopulation(agents.length);
+  if (newEra !== currentEra) {
+    currentEra = newEra;
+  }
+}
+
+function checkBirths() {
+  const existingNames = new Set(agents.map(a => a.name));
+  for (const founderName of FOUNDER_NAMES) {
+    const founder = agents.find(a => a.name === founderName);
+    if (!founder) continue;
+    const lv = getLevelFromXP(founder.xp);
+    const registry = BIRTH_REGISTRY[founderName];
+    if (!registry) continue;
+    for (const child of registry) {
+      if (existingNames.has(child.name)) continue;
+      if (lv < child.birthLevel) continue;
+      // BIRTH!
+      const ws = BORN_WORKSTATIONS[child.name];
+      const newAgent = {
+        name: child.name,
+        x: founder.x, y: founder.y,
+        dir: 0, tx: ws ? ws.x : founder.x, ty: ws ? ws.y : founder.y,
+        walking: false, speed: 0.007,
+        bubble: null, bubbleStart: 0, idleTimer: 0,
+        home: ws || { x: founder.home.x + 1, y: founder.home.y },
+        xp: 0, activity: 'idle', activityTimer: 0, lastScheduleCheck: 0,
+        path: [], pathIdx: 0,
+        tier: 'spark', generation: (founder.generation || 0) + 1,
+        bornFrom: founderName, specialty: child.specialty,
+      };
+      agents.push(newAgent);
+      existingNames.add(child.name);
+      totalBirths++;
+      triggerBirthEffect(founder.x, founder.y, child.name);
+      founder.bubble = child.name.toUpperCase() + ' is born!';
+      founder.bubbleStart = Date.now();
+      if (ws) setAgentPath(newAgent, ws.x, ws.y);
+      // Play birth sound
+      try {
+        const ac = new AudioContext();
+        const notes = [523, 659, 784, 1047, 1318];
+        notes.forEach((freq, i) => {
+          const osc = ac.createOscillator();
+          const gain = ac.createGain();
+          osc.connect(gain); gain.connect(ac.destination);
+          osc.type = 'sine';
+          osc.frequency.value = freq;
+          gain.gain.setValueAtTime(0.06, ac.currentTime + i * 0.1);
+          gain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + i * 0.1 + 0.25);
+          osc.start(ac.currentTime + i * 0.1);
+          osc.stop(ac.currentTime + i * 0.1 + 0.25);
+        });
+      } catch {}
+    }
+  }
 }
 
 // Agent roles/class for display
@@ -764,16 +1007,16 @@ const AGENT_CLASS = {
 // ── AGENTS ──
 const agents = [
   { name: 'robin', x: 10, y: 7, dir: 0, tx: 10, ty: 7, walking: false, speed: 0.008, bubble: null, bubbleStart: 0, idleTimer: 0, home: {x:4,y:4},
-    xp: 1200, activity: 'idle', activityTimer: 0, lastScheduleCheck: 0, path: [], pathIdx: 0,
+    xp: 1200, activity: 'idle', activityTimer: 0, lastScheduleCheck: 0, path: [], pathIdx: 0, tier: 'spark', generation: 0,
   },
   { name: 'sherlock', x: 4, y: 9, dir: 0, tx: 4, ty: 9, walking: false, speed: 0.006, bubble: null, bubbleStart: 0, idleTimer: 0, home: {x:4,y:13},
-    xp: 800, activity: 'idle', activityTimer: 0, lastScheduleCheck: 0, path: [], pathIdx: 0,
+    xp: 800, activity: 'idle', activityTimer: 0, lastScheduleCheck: 0, path: [], pathIdx: 0, tier: 'spark', generation: 0,
   },
   { name: 'jarvis', x: 17, y: 4, dir: 0, tx: 17, ty: 4, walking: false, speed: 0.005, bubble: null, bubbleStart: 0, idleTimer: 0, home: {x:16,y:4},
-    xp: 900, activity: 'idle', activityTimer: 0, lastScheduleCheck: 0, path: [], pathIdx: 0,
+    xp: 900, activity: 'idle', activityTimer: 0, lastScheduleCheck: 0, path: [], pathIdx: 0, tier: 'spark', generation: 0,
   },
   { name: 'stark', x: 17, y: 12, dir: 0, tx: 17, ty: 12, walking: false, speed: 0.009, bubble: null, bubbleStart: 0, idleTimer: 0, home: {x:16,y:13},
-    xp: 1500, activity: 'idle', activityTimer: 0, lastScheduleCheck: 0, path: [], pathIdx: 0,
+    xp: 1500, activity: 'idle', activityTimer: 0, lastScheduleCheck: 0, path: [], pathIdx: 0, tier: 'spark', generation: 0,
   },
 ];
 
@@ -1502,9 +1745,9 @@ function getActivityTarget(agent, activity) {
     case 'waking':
       return { x: agent.home.x, y: agent.home.y };
     case 'working':
-      return WORKSTATIONS[agent.name];
+      return WORKSTATIONS[agent.name] || BORN_WORKSTATIONS[agent.name];
     case 'studying':
-      return WORKSTATIONS[agent.name]; // study at their own station
+      return WORKSTATIONS[agent.name] || BORN_WORKSTATIONS[agent.name];
     case 'meeting': {
       // Gather around mission board — these tiles are walkable (grass)
       const meetSpots = [{x:8,y:7},{x:11,y:7},{x:8,y:9},{x:11,y:9}];
@@ -1517,7 +1760,7 @@ function getActivityTarget(agent, activity) {
     case 'visiting': {
       const others = agents.filter(a => a.name !== agent.name);
       const target = others[Math.floor(Math.random() * others.length)];
-      return WORKSTATIONS[target.name];
+      return WORKSTATIONS[target.name] || BORN_WORKSTATIONS[target.name] || pickTarget(agent);
     }
     default:
       return pickTarget(agent);
@@ -1529,9 +1772,9 @@ function showActivityBubble(agent) {
   let pool;
   switch (agent.activity) {
     case 'sleeping': pool = SLEEP_BUBBLES; break;
-    case 'working': pool = WORK_BUBBLES[agent.name]; break;
-    case 'studying': pool = STUDY_BUBBLES[agent.name]; break;
-    case 'break': case 'waking': pool = BREAK_BUBBLES[agent.name]; break;
+    case 'working': pool = WORK_BUBBLES[agent.name] || ['Processing...', 'Working...', 'On it!', 'Running task...', 'Executing...']; break;
+    case 'studying': pool = STUDY_BUBBLES[agent.name] || ['Studying...', 'Learning...', 'New concept!', 'Interesting...', 'Research mode...']; break;
+    case 'break': case 'waking': pool = BREAK_BUBBLES[agent.name] || ['*resting*', 'Nice...', 'Recharging...', '*idle*', 'Hmm...']; break;
     case 'visiting': pool = VISIT_BUBBLES; break;
     case 'meeting': pool = ['📋 Review time', 'Status update...', 'What\'s next?', 'Good progress!', 'Let\'s plan...']; break;
     default: return;
@@ -1624,6 +1867,87 @@ function drawStars() {
   }
 }
 
+// ── BIRTH & EVOLUTION EFFECTS ──
+function drawBirthEffects() {
+  const now = Date.now();
+  for (let i = birthEffects.length - 1; i >= 0; i--) {
+    const b = birthEffects[i];
+    const age = now - b.born;
+    if (age > b.duration) { birthEffects.splice(i, 1); continue; }
+
+    const bpx = b.x * TILE;
+    const bpy = b.y * TILE;
+    const progress = age / b.duration;
+    const fade = progress < 0.2 ? progress / 0.2 : progress > 0.7 ? (1 - progress) / 0.3 : 1;
+
+    // Expanding rings
+    for (let r = 0; r < 3; r++) {
+      const ringProgress = Math.max(0, progress - r * 0.1);
+      const ringSize = 3 + ringProgress * 25;
+      ctx.strokeStyle = `rgba(255, 230, 100, ${fade * 0.5 * (1 - r * 0.3)})`;
+      ctx.lineWidth = 0.5;
+      ctx.beginPath();
+      ctx.arc(bpx + 8, bpy + 8, ringSize, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+    // Sparkle burst
+    for (let p = 0; p < 12; p++) {
+      const angle = (p / 12) * Math.PI * 2 + progress * 4;
+      const dist = progress * 20;
+      const sx = bpx + 8 + Math.cos(angle) * dist;
+      const sy = bpy + 8 + Math.sin(angle) * dist;
+      ctx.fillStyle = `rgba(255, 230, 100, ${fade * 0.8})`;
+      ctx.fillRect(sx, sy, 1, 1);
+    }
+
+    // Name label
+    if (progress > 0.15 && progress < 0.85) {
+      ctx.fillStyle = `rgba(255, 255, 255, ${fade})`;
+      ctx.font = '4px monospace';
+      ctx.fillText('★ ' + b.name.toUpperCase() + ' BORN!', bpx - 12, bpy - 6);
+    }
+  }
+}
+
+function drawEvolutionEffects() {
+  const now = Date.now();
+  for (let i = evolutionEffects.length - 1; i >= 0; i--) {
+    const e = evolutionEffects[i];
+    const age = now - e.born;
+    if (age > e.duration) { evolutionEffects.splice(i, 1); continue; }
+
+    const epx = e.x * TILE;
+    const epy = e.y * TILE;
+    const progress = age / e.duration;
+    const fade = progress < 0.2 ? progress / 0.2 : progress > 0.7 ? (1 - progress) / 0.3 : 1;
+    const tierColor = TIER_EFFECTS[e.tier]?.particleColor || '#ffe66d';
+
+    // Vertical beam
+    ctx.globalAlpha = fade * 0.4;
+    ctx.fillStyle = tierColor;
+    ctx.fillRect(epx + 6, epy - 20 * progress, 4, 20 * progress + TILE);
+    ctx.globalAlpha = 1;
+
+    // Rising particles
+    for (let p = 0; p < 8; p++) {
+      const py = epy + TILE - progress * (30 + p * 5);
+      const px2 = epx + 8 + Math.sin(now / 200 + p * 1.5) * 6;
+      ctx.fillStyle = `rgba(255, 255, 255, ${fade * 0.6})`;
+      ctx.fillRect(px2, py, 1, 1);
+    }
+
+    // Label
+    if (progress > 0.1 && progress < 0.9) {
+      ctx.fillStyle = tierColor;
+      ctx.globalAlpha = fade;
+      ctx.font = '4px monospace';
+      ctx.fillText('⚡ ' + e.tier.toUpperCase() + '!', epx - 6, epy - 10);
+      ctx.globalAlpha = 1;
+    }
+  }
+}
+
 let agentPanelOpen = false;
 
 function openAgentPanel(agent, screenX, screenY) {
@@ -1641,7 +1965,7 @@ function openAgentPanel(agent, screenX, screenY) {
 
   panel.innerHTML = `
     <div class="ap-name" style="color:${AGENT_COLORS[agent.name].body}">${agent.name.charAt(0).toUpperCase() + agent.name.slice(1)}</div>
-    <span class="ap-class">${AGENT_CLASS[agent.name]} — Trust Lv.${Math.min(3, Math.ceil(lv/2))}</span>
+    <span class="ap-class">${AGENT_CLASS[agent.name] || BORN_AGENT_CLASS[agent.name] || 'Agent'} — ${(agent.tier || 'spark').toUpperCase()} ✦ Gen ${agent.generation || 0}</span>
     <div class="ap-row"><span class="label">STATUS</span><span style="color:#50fa7b">${actLabel}</span></div>
     <div class="ap-row"><span class="label">LEVEL</span><span>${lv}</span></div>
     <div class="ap-xpbar"><div class="fill" style="width:${Math.round(prog*100)}%;background:${barColor}"></div></div>
@@ -1734,16 +2058,17 @@ function gameLoop(time) {
   // ── PARTY HUD (top-right) ──
   const hudX = COLS * TILE - 60;
   const hudY = 3;
-  // Panel background
+  // Panel background (dynamic height for born agents)
+  const hudHeight = 9 + agents.length * 10;
   ctx.fillStyle = 'rgba(17,17,51,0.85)';
-  ctx.fillRect(hudX - 3, hudY - 2, 62, 48);
+  ctx.fillRect(hudX - 3, hudY - 2, 62, hudHeight);
   ctx.strokeStyle = '#4444aa';
   ctx.lineWidth = 0.5;
-  ctx.strokeRect(hudX - 3, hudY - 2, 62, 48);
-  // Title
+  ctx.strokeRect(hudX - 3, hudY - 2, 62, hudHeight);
+  // Title with era
   ctx.fillStyle = '#ffe66d';
   ctx.font = '3px monospace';
-  ctx.fillText('PARTY', hudX + 18, hudY + 3);
+  ctx.fillText((currentEra || 'VILLAGE').toUpperCase() + ' (' + agents.length + ')', hudX + 4, hudY + 3);
 
   for (let i = 0; i < agents.length; i++) {
     const a = agents[i];
@@ -1753,6 +2078,12 @@ function gameLoop(time) {
     const prog = xpProgress(a.xp);
     const nextXP = xpForLevel(lv + 1);
 
+    // Tier glow behind dot
+    const aTierFx = TIER_EFFECTS[a.tier || 'spark'];
+    if (aTierFx.aura) {
+      ctx.fillStyle = aTierFx.aura;
+      ctx.fillRect(hudX - 1, hy - 1, 5, 5);
+    }
     // Color dot — pulsing if working, dim if sleeping
     const dotAlpha = a.activity === 'sleeping' ? 0.3 : (a.activity === 'working' || a.activity === 'studying') ? (0.7 + Math.sin(Date.now() / 400 + i) * 0.3) : 1;
     ctx.globalAlpha = dotAlpha;
@@ -1798,10 +2129,37 @@ function gameLoop(time) {
   // Update & draw agents (sort by Y for depth)
   updateAgents(dt);
   updateParticles();
+  // Born agent workstations (appear when agents are born)
+  for (const agent of agents) {
+    if (FOUNDER_NAMES.includes(agent.name)) continue;
+    const ws = BORN_WORKSTATIONS[agent.name];
+    if (!ws) continue;
+    const ac = AGENT_COLORS[agent.name];
+    if (!ac) continue;
+    const bpx = ws.x * TILE;
+    const bpy = ws.y * TILE;
+    // Small desk
+    ctx.fillStyle = '#5a3a1a';
+    ctx.fillRect(bpx + 2, bpy + 8, 12, 6);
+    ctx.fillStyle = '#8b6914';
+    ctx.fillRect(bpx + 3, bpy + 6, 10, 4);
+    // Agent color accent
+    ctx.fillStyle = ac.body;
+    ctx.fillRect(bpx + 5, bpy + 7, 6, 2);
+    // Label
+    ctx.fillStyle = ac.body;
+    ctx.font = '3px monospace';
+    ctx.fillText(agent.name.toUpperCase(), bpx, bpy + 4);
+  }
+
   const sorted = [...agents].sort((a, b) => a.y - b.y);
   for (const agent of sorted) {
     drawSprite(agent, animFrame);
   }
+
+  // Birth & evolution effects
+  drawBirthEffects();
+  drawEvolutionEffects();
 
   // Ambient particles
   drawParticles();
@@ -1821,11 +2179,16 @@ function gameLoop(time) {
   const clockM = getCurrentMinute().toString().padStart(2, '0');
   const tod = getTimeOfDay();
   const todLabel = { night: '🌙 NIGHT', dawn: '🌅 DAWN', morning: '☀️ MORNING', midday: '☀️ MIDDAY', afternoon: '☀️ AFTERNOON', evening: '🌆 EVENING', dusk: '🌙 DUSK' };
-  ctx.fillStyle = 'rgba(17,17,51,0.8)';
-  ctx.fillRect(2, ROWS * TILE - 14, 52, 12);
+  ctx.fillStyle = 'rgba(17,17,51,0.85)';
+  ctx.fillRect(2, ROWS * TILE - 22, 58, 20);
   ctx.strokeStyle = '#4444aa';
   ctx.lineWidth = 0.3;
-  ctx.strokeRect(2, ROWS * TILE - 14, 52, 12);
+  ctx.strokeRect(2, ROWS * TILE - 22, 58, 20);
+  // Era line
+  ctx.fillStyle = '#a855f7';
+  ctx.font = '3px monospace';
+  ctx.fillText((currentEra || 'VILLAGE').toUpperCase() + ' ERA', 5, ROWS * TILE - 15);
+  // Clock line
   ctx.fillStyle = '#ffe66d';
   ctx.font = '4px monospace';
   ctx.fillText(clockH + ':' + clockM, 5, ROWS * TILE - 6);
