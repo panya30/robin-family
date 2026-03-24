@@ -269,12 +269,13 @@
         <p>Agents follow a 24/7 schedule — they never sleep. Activities rotate throughout the day:</p>
         <ul>
           <li><span style="color:#50fa7b">⚡ WORKING</span> — at their workstation, doing their specialty (scanning, building, indexing...)</li>
+          <li><span style="color:#64c8ff">📚 STUDYING</span> — self-directed learning! Searching GitHub, reading papers, exploring new frameworks</li>
           <li><span style="color:#4ecdc4">📋 MEETING</span> — gathered at the mission board for team sync</li>
-          <li><span style="color:#ffe66d">👋 VISITING</span> — walking to a teammate's workstation to collaborate</li>
+          <li><span style="color:#ffe66d">👋 VISITING</span> — walking to a teammate's workstation to collaborate or share learnings</li>
           <li><span style="color:#8888aa">☕ BREAK</span> — taking a short rest, wandering the grounds</li>
         </ul>
         <div class="g-tip">
-          <span class="tip-label">NIGHT SHIFT:</span> After 10PM, agents enter deep work mode — focused working with fewer interruptions. They take staggered breaks and occasionally visit teammates.
+          <span class="tip-label">SELF-STUDY:</span> Agents don't wait for assignments — they autonomously search GitHub for repos in their field, study new techniques, and level up their skills. Each agent has a curriculum of 10+ topics. Study sessions happen mornings (9AM), afternoons (2PM), evenings (7-9PM), and throughout the night shift.
         </div>
       </div>
 
@@ -660,6 +661,24 @@ function drawSprite(agent, frame) {
     ctx.fillRect(sx + 1, sy - 1, 1, 1);
   }
 
+  // Studying indicator — floating book + particles
+  if (agent.activity === 'studying' && !agent.walking) {
+    const st = Date.now() / 400;
+    // Book icon bobbing
+    ctx.fillStyle = '#ffe66d';
+    ctx.font = '4px monospace';
+    const bookBob = Math.sin(st) * 1.5;
+    ctx.fillText('📚', px + 11, py + 3 + bookBob);
+    // Knowledge particles rising
+    const pAlpha = 0.3 + Math.sin(st * 2 + agents.indexOf(agent)) * 0.3;
+    ctx.fillStyle = `rgba(100, 200, 255, ${pAlpha})`;
+    const p1y = py - 2 + Math.sin(st * 1.3) * 3;
+    const p2y = py + 1 + Math.cos(st * 1.7) * 2;
+    ctx.fillRect(px + 14, p1y, 1, 1);
+    ctx.fillRect(px + 12, p2y, 1, 1);
+    ctx.fillRect(px + 15, py + Math.sin(st * 0.9) * 2, 1, 1);
+  }
+
   // Meeting indicator — small clipboard icon
   if (agent.activity === 'meeting' && !agent.walking) {
     ctx.fillStyle = '#ffe66d';
@@ -1033,7 +1052,7 @@ function updateAgents(dt) {
 
         if (agent.activity === 'sleeping') {
           agent.dir = 0;
-        } else if (agent.activity === 'working') {
+        } else if (agent.activity === 'working' || agent.activity === 'studying') {
           // Small fidgets near workstation
           if (agent.activityTimer > 2500 + Math.random() * 2000) {
             const jx = Math.round(agent.x) + (Math.random() > 0.5 ? 1 : -1);
@@ -1378,6 +1397,12 @@ const BREAK_BUBBLES = {
 };
 const SLEEP_BUBBLES = ['Zzz...', 'zzz', '💤', '...zzz...', 'Zzz'];
 const VISIT_BUBBLES = ['Hey!', 'Check this out!', 'Got a minute?', 'Nice work!', 'How\'s it going?', 'Look at this!'];
+const STUDY_BUBBLES = {
+  robin: ['Reading about agents...', 'MCP patterns...', 'Orchestration study...', 'Learning ReAct...', 'New framework found!', 'AI safety paper...'],
+  sherlock: ['Quant strategy...', 'New indicator found!', 'ML for finance...', 'Factor models...', 'Options pricing...', 'Studying alpha...'],
+  jarvis: ['Vector DB paper...', 'RAG optimization...', 'Graph networks...', 'Embedding study...', 'Hybrid search...', 'Memory systems...'],
+  stark: ['New framework!', 'WebSocket patterns...', 'Canvas perf study...', 'Design systems...', 'Edge computing...', 'WASM research...'],
+};
 
 function getCurrentHour() { return new Date().getHours(); }
 function getCurrentMinute() { return new Date().getMinutes(); }
@@ -1422,41 +1447,48 @@ function getSchedule(agent) {
   const q = Math.floor(m / 15); // 0-3 quarter of hour
   const idx = agents.indexOf(agent); // 0-3
 
-  // ── Night shift (22:00 - 05:59) — deep work with occasional breaks ──
+  // ── Night shift (22:00 - 05:59) — self-study + deep work ──
   if (h >= 22 || h < 6) {
-    if (q === idx) return 'break'; // staggered 15min break per agent
-    if (h % 2 === 0 && q === 3) return 'visiting'; // visit teammate every 2h
-    return 'working'; // deep focus work
+    if (q === idx) return 'break'; // staggered 15min break
+    if (h % 2 === 0 && q === 3) return 'visiting'; // share learnings
+    // Alternate: even hours = study, odd hours = work
+    return h % 2 === 0 ? 'studying' : 'working';
   }
 
   // ── Morning transition (06:00 - 07:59) ──
   if (h === 6) return q < 2 ? 'break' : 'meeting';
   if (h === 7) return q < 2 ? 'meeting' : 'working';
 
-  // ── Day shift (08:00 - 11:59) ──
+  // ── Day shift (08:00 - 11:59) — work + study blocks ──
   if (h >= 8 && h < 12) {
     if (h === 10 && q === 2) return 'break';
     if (q === ((idx + 1) % 4)) return 'visiting';
+    // Each agent gets one study quarter per morning
+    if (h === 9 && q === idx) return 'studying';
     return 'working';
   }
 
   // ── Lunch (12:00) ──
   if (h === 12) return 'break';
 
-  // ── Afternoon (13:00 - 16:59) ──
+  // ── Afternoon (13:00 - 16:59) — work + study blocks ──
   if (h >= 13 && h < 17) {
     if (h === 15 && q === 0) return 'meeting';
     if (q === ((idx + 2) % 4)) return 'visiting';
+    // Study block at 14:00, staggered by agent
+    if (h === 14 && q === idx) return 'studying';
     return 'working';
   }
 
   // ── Evening transition (17:00) ──
   if (h === 17) return q < 2 ? 'meeting' : 'break';
 
-  // ── Evening shift (18:00 - 21:59) — lighter pace ──
+  // ── Evening shift (18:00 - 21:59) — study-heavy ──
   if (h >= 18 && h < 22) {
     if (q === ((idx + 1) % 4)) return 'visiting';
     if (h === 20 && q === 0) return 'meeting'; // evening standup
+    // Evenings: more study than work
+    if (h >= 19 && h < 21) return (q + idx) % 2 === 0 ? 'studying' : 'working';
     return (q + idx) % 3 === 0 ? 'break' : 'working';
   }
 
@@ -1471,6 +1503,8 @@ function getActivityTarget(agent, activity) {
       return { x: agent.home.x, y: agent.home.y };
     case 'working':
       return WORKSTATIONS[agent.name];
+    case 'studying':
+      return WORKSTATIONS[agent.name]; // study at their own station
     case 'meeting': {
       // Gather around mission board — these tiles are walkable (grass)
       const meetSpots = [{x:8,y:7},{x:11,y:7},{x:8,y:9},{x:11,y:9}];
@@ -1496,6 +1530,7 @@ function showActivityBubble(agent) {
   switch (agent.activity) {
     case 'sleeping': pool = SLEEP_BUBBLES; break;
     case 'working': pool = WORK_BUBBLES[agent.name]; break;
+    case 'studying': pool = STUDY_BUBBLES[agent.name]; break;
     case 'break': case 'waking': pool = BREAK_BUBBLES[agent.name]; break;
     case 'visiting': pool = VISIT_BUBBLES; break;
     case 'meeting': pool = ['📋 Review time', 'Status update...', 'What\'s next?', 'Good progress!', 'Let\'s plan...']; break;
@@ -1601,7 +1636,7 @@ function openAgentPanel(agent, screenX, screenY) {
   const missions = AGENT_MISSIONS_DONE[agent.name] || [];
   const barColor = lv >= 5 ? '#ff6b9d' : lv >= 3 ? '#50fa7b' : '#4ecdc4';
 
-  const activityLabels = { sleeping: '💤 Sleeping', working: '⚡ Working', meeting: '📋 Meeting', break: '☕ Break', visiting: '👋 Visiting', waking: '🌅 Waking up', heading_home: '🏠 Going home', idle: '— Idle' };
+  const activityLabels = { sleeping: '💤 Sleeping', working: '⚡ Working', studying: '📚 Studying', meeting: '📋 Meeting', break: '☕ Break', visiting: '👋 Visiting', waking: '🌅 Waking up', heading_home: '🏠 Going home', idle: '— Idle' };
   const actLabel = activityLabels[agent.activity] || agent.activity;
 
   panel.innerHTML = `
@@ -1719,7 +1754,7 @@ function gameLoop(time) {
     const nextXP = xpForLevel(lv + 1);
 
     // Color dot — pulsing if working, dim if sleeping
-    const dotAlpha = a.activity === 'sleeping' ? 0.3 : a.activity === 'working' ? (0.7 + Math.sin(Date.now() / 400 + i) * 0.3) : 1;
+    const dotAlpha = a.activity === 'sleeping' ? 0.3 : (a.activity === 'working' || a.activity === 'studying') ? (0.7 + Math.sin(Date.now() / 400 + i) * 0.3) : 1;
     ctx.globalAlpha = dotAlpha;
     ctx.fillStyle = ac.body;
     ctx.fillRect(hudX, hy, 3, 3);
